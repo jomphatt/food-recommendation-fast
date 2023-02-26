@@ -7,3 +7,9 @@ Despite a wide mention of the Covid-19 pandemic in recent years, there are many 
 Our team found that an increased intake of energy-dense foods that are high in fat and sugars can be solved by using AI. Our team has talked to more than 10 university students, and we found that they have no idea on how much nutrient they consumed and they randomly choose a meal in their daily life. This is one of the strongest pain points that we want to solve to improve people’ life and health.
 
 Thus, we came up with an idea to develop a line chatbot that recommends and controls the user's daily consumed nutrition. We also enhance user experience by connecting to a restaurant to enable a contactless food ordering to decrease the waiting time and chances of infection of the Covid-19 in this pandemic era. For our first phase, we target to test our product within iCanteen with the engineering students. We hope that our product can prevent people from obesity.
+
+- Propose a prototype of a food recommendation application for Thai university students based on literature survey and user survey
+- Improve the current food recommendation with image recognition system for engineering students
+- Build a classification model that accurately classifies food types available in the university canteen
+- Recommend the most suitable food based on nutritional and calorie intake per day to satisfy users
+- Facilitate users with an end-to-end service for recommending and ordering meals from the restaurant.
