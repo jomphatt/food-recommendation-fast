@@ -1,4 +1,5 @@
 import os
+import random
 from dotenv import load_dotenv, find_dotenv
 
 # FastAPI
@@ -23,6 +24,64 @@ load_dotenv(find_dotenv())
 line_bot_api = LineBotApi(os.getenv("CHANNEL_ACCESS_TOKEN"))
 handler = WebhookHandler(os.getenv("CHANNEL_SECRET"))
 
+# List of all menus
+menu_file = open("../menus.txt", "r")
+menu_list = menu_file.readlines()
+
+# One flex message's template
+flex_template = """{
+    "type": "bubble",
+    "hero": {
+        "type": "image",
+        "url": "{menu_image}",
+        "size": "full",
+        "aspectRatio": "20:13",
+        "aspectMode": "cover"
+    },
+    "body": {
+        "type": "box",
+        "layout": "vertical",
+        "contents": [
+            {
+                "type": "text",
+                "text": "{menu_name}",
+                "weight": "bold",
+                "size": "xl"
+            },
+            {
+                "type": "box",
+                "layout": "vertical",
+                "margin": "lg",
+                "spacing": "sm",
+                "contents": [
+                    {
+                        "type": "box",
+                        "layout": "baseline",
+                        "spacing": "md",
+                        "contents": [
+                            {
+                                "type": "text",
+                                "text": "Calorie",
+                                "color": "#aaaaaa",
+                                "size": "md",
+                                "flex": 2
+                            },
+                            {
+                                "type": "text",
+                                "text": "{menu_calorie}",
+                                "wrap": True,
+                                "color": "#666666",
+                                "size": "md",
+                                "flex": 5
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    }
+}"""
+
 
 @router.get("/")
 async def root_bot():
@@ -43,10 +102,29 @@ async def callback(request: Request, x_line_signature=Header(None)):
 @handler.add(MessageEvent, message=TextMessage)
 def message_text(event):
     print(event)
-    line_bot_api.reply_message(
-        event.reply_token,
-        TextSendMessage(text=event.message.text)
-    )
+    if event.message.text == "Give me food recommendations.":
+        recommended_menus = random.sample(menu_list, 5) # Replace this with an actual code for recommendation model
+        content = []
+        for rm in recommended_menus:
+            menu_flex = flex_template.format(
+                menu_image = "https://en.wikipedia.org/wiki/Pikachu#/media/File:Pok%C3%A9mon_Pikachu_art.png", 
+                menu_name = rm, 
+                menu_calorie = 500
+            )
+            content.append(menu_flex)
+        flex_message = FlexSendMessage(
+            alt_text='recommended_menus',
+            contents={
+                "type": "carousel",
+                "contents": content
+            }
+        )
+        line_bot_api.reply_message(
+            event.reply_token,
+            flex_message
+        )
+    else:
+        pass
 
 @handler.add(MessageEvent, message=StickerMessage)
 def sticker_text(event):
@@ -58,74 +136,5 @@ def sticker_text(event):
 
 @handler.add(MessageEvent, message=ImageMessage)
 def sticker_text(event):
-    flex_message = FlexSendMessage(
-        alt_text='hello',
-        contents={
-            "type": "carousel",
-            "contents": [
-                {
-                "type": "bubble",
-                "body": {
-                    "type": "box",
-                    "layout": "horizontal",
-                    "contents": [
-                    {
-                        "type": "text",
-                        "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
-                        "wrap": True
-                    }
-                    ]
-                },
-                "footer": {
-                    "type": "box",
-                    "layout": "horizontal",
-                    "contents": [
-                    {
-                        "type": "button",
-                        "style": "primary",
-                        "action": {
-                        "type": "uri",
-                        "label": "Go",
-                        "uri": "https://scdn.line-apps.com/n/channel_devcenter/img/fx/01_1_cafe.png"
-                        }
-                    }
-                    ]
-                }
-                },
-                {
-                "type": "bubble",
-                "body": {
-                    "type": "box",
-                    "layout": "horizontal",
-                    "contents": [
-                    {
-                        "type": "text",
-                        "text": "Hello, World!",
-                        "wrap": True
-                    }
-                    ]
-                },
-                "footer": {
-                    "type": "box",
-                    "layout": "horizontal",
-                    "contents": [
-                    {
-                        "type": "button",
-                        "style": "primary",
-                        "action": {
-                        "type": "uri",
-                        "label": "Go",
-                        "uri": "https://scdn.line-apps.com/n/channel_devcenter/img/fx/01_1_cafe.png"
-                        }
-                    }
-                    ]
-                }
-                }
-            ]
-        }
-    )
-    line_bot_api.reply_message(
-        event.reply_token,
-        flex_message
-    )
+    pass
 
