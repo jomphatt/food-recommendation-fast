@@ -1,5 +1,6 @@
 import os
 import random
+import json
 from dotenv import load_dotenv, find_dotenv
 
 # FastAPI
@@ -111,6 +112,7 @@ def message_text(event):
                 menu_name = rm, 
                 menu_calorie = 500
             )
+            menu_flex = json.loads(menu_flex)
             content.append(menu_flex)
         flex_message = FlexSendMessage(
             alt_text='recommended_menus',
