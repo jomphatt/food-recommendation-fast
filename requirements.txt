@@ -25,7 +25,11 @@ starlette==0.25.0
 typing_extensions==4.5.0
 urllib3==1.26.14
 uvicorn==0.20.0
-uvloop==0.17.0
 watchfiles==0.18.1
 websockets==10.4
 yarl==1.8.2
+pillow
+numpy
+pandas
+tensorflow 
+scikit-learn
