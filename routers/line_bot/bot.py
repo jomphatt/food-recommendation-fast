@@ -39,7 +39,7 @@ def get_template(menu_image: str, menu_name: str, menu_calorie: str) -> dict:
             "type": "image",
             "url": menu_image,
             "size": "full",
-            "aspectRatio": "3:4",
+            "aspectRatio": "4:5",
             "aspectMode": "cover"
         },
         "body": {
