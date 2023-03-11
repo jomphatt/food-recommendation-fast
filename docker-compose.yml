@@ -1,0 +1,14 @@
+services:
+  eatwise_database:
+    container_name: eatwise_database
+    image: postgres:11-alpine
+    volumes:
+      - "./backup:/backup"
+      - eatwise_database_vol:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    env_file:
+      - ./.env
+volumes:
+  eatwise_database_vol:
+    external: true

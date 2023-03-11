@@ -5,15 +5,14 @@ import uvicorn
 
 # Line-Bot SDK
 from linebot import *
-from linebot.exceptions import InvalidSignatureError
-from linebot.models import TextMessage, MessageEvent, TextSendMessage, StickerMessage, \
-    StickerSendMessage, ImageMessage, FlexSendMessage
 
 # Router
-from routers import bot
+from routers.line_bot import bot
 
+# Initiate Fast App
 app = FastAPI()
 
+# Router to Fast App
 app.include_router(bot.router)
 
 @app.get('/')
