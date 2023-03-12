@@ -8,6 +8,7 @@ charset-normalizer==2.1.1
 click==8.1.3
 fastapi==0.92.0
 firebase==4.0.1
+firebase-admin==6.1.0
 frozenlist==1.3.3
 future==0.18.3
 h11==0.14.0

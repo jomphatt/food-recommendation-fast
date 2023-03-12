@@ -1,9 +1,13 @@
+# Import packages for food recognition
 import numpy as np
 import pandas as pd
 from PIL import Image
 from tensorflow.keras.models import Model, model_from_json
 from tensorflow.keras.preprocessing import image
 from tensorflow.keras.applications.vgg19 import preprocess_input as preprocess_input_VGG19_model
+
+# Import Firebase Realtime Database class
+from routers.line_bot.realtime_db import RealtimeDB
 
 class FoodRecognition:
     
@@ -30,22 +34,33 @@ class FoodRecognition:
         18: 'stir_fried_rice_noodles_with_chicken',
         19: 'stir_fried_rice_noodles_with_soy_sauce_and_pork'
     }
-    
+
     # Paths to the VGG-19 model
     vgg19_json_path = "./assets/models/VGG19_model.json"
     vgg19_h5_path = "./assets/models/VGG19_model.h5"
     
+    
+    def _upload(self, label, img_arr):
+        realtime_db = RealtimeDB()
+        realtime_db.upload(label, img_arr)
+    
+    
     def predict(self, img_path):
-        """
-        Give a prediction of an input food image.
-        """
+        """Predict a menu from a file path to a food image.
 
+        Args:
+            img_path (str): Food image file path
+
+        Returns:
+            prediction (str): Predicted menu
+        """
+        
         food_img = image.load_img(img_path, target_size=(224, 224))
 
         img_arr = image.img_to_array(food_img)
         img_arr = np.expand_dims(img_arr, axis=0)
         img_arr = preprocess_input_VGG19_model(img_arr)
-
+        
         json_file = open(self.vgg19_json_path, 'r')
         model_json = json_file.read()
         json_file.close()
@@ -55,6 +70,11 @@ class FoodRecognition:
 
         y_pred = model.predict(img_arr, batch_size=1)
         y_pred = np.argmax(y_pred)
-        return self.prediction_classes[y_pred]
+        prediction = self.prediction_classes[y_pred]
+        
+        # Upload to Firebase Realtime Database for re-training
+        self._upload(prediction, img_arr)
+        
+        return prediction
     
     
