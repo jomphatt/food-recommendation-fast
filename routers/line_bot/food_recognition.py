@@ -6,8 +6,9 @@ from tensorflow.keras.models import Model, model_from_json
 from tensorflow.keras.preprocessing import image
 from tensorflow.keras.applications.vgg19 import preprocess_input as preprocess_input_VGG19_model
 
-# Import Firebase Realtime Database class
+# Import Firebase classes
 from routers.line_bot.realtime_db import RealtimeDB
+from routers.line_bot.firebase_storage import FirebaseStorage
 
 class FoodRecognition:
     
@@ -34,15 +35,45 @@ class FoodRecognition:
         18: 'stir_fried_rice_noodles_with_chicken',
         19: 'stir_fried_rice_noodles_with_soy_sauce_and_pork'
     }
+    
+    # This is how the dict supposes to look like once Pann finished training the new model.
+    # Also, we can store this dict in a JSON file, so the code looks cleaner.
+    actual_classes = {
+        'menu_1': 'chicken_noodles',
+        'menu_2': 'fried_chicken_with_sticky_rice',
+        'menu_3': 'fried_pork_curry_with_rice',
+        'menu_4': 'grilled_pork_with_sticky_rice',
+        'menu_5': 'lek_tom_yam',
+        'menu_6': 'mama_nam_tok',
+        'menu_7': 'pork_blood_soup',
+        'menu_8': 'pork_congee',
+        'menu_9': 'pork_suki',
+        'menu_10': 'rice_topped_with_stir_fried_pork_and_basil', # Should be 'stir_fried_pork_and_basil_with_rice'
+        'menu_11': 'rice_with_roasted_pork', # Should be 'roasted_pork_with_rice'
+        'menu_12': 'roasted_red_pork_dumplings',
+        'menu_13': 'roasted_red_pork_noodle',
+        'menu_14': 'scrambled_egg_with_rice',
+        'menu_15': 'sliced_grilled_pork_salad',
+        'menu_16': 'spicy_fried_chicken_with_sticky_rice',
+        'menu_17': 'steamed_rice_with_chicken',
+        'menu_18': 'steamed_rice_with_fried_chicken',
+        'menu_19': 'stir_fried_rice_noodles_with_chicken',
+        'menu_20': 'stir_fried_rice_noodles_with_soy_sauce_and_pork'
+    }
 
     # Paths to the VGG-19 model
     vgg19_json_path = "./assets/models/VGG19_model.json"
     vgg19_h5_path = "./assets/models/VGG19_model.h5"
     
     
-    def _upload(self, label, img_arr):
+    def _upload_realtime_db(self, label, img_arr):
         realtime_db = RealtimeDB()
         realtime_db.upload(label, img_arr)
+    
+    
+    def _upload_storage(self, label, img_path):
+        firebase_storage = FirebaseStorage()
+        firebase_storage.upload_retrain_image(label, img_path)
     
     
     def predict(self, img_path):
@@ -73,7 +104,10 @@ class FoodRecognition:
         prediction = self.prediction_classes[y_pred]
         
         # Upload to Firebase Realtime Database for re-training
-        self._upload(prediction, img_arr)
+        # self._upload_realtime_db(prediction, img_arr)
+        
+        # Upload to Firebase Storage for re-training
+        self._upload_storage(prediction, img_path)
         
         return prediction
     
