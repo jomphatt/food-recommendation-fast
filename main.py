@@ -8,12 +8,14 @@ from linebot import *
 
 # Router
 from routers.line_bot import bot
+from routers.user import user
 
 # Initiate Fast App
 app = FastAPI()
 
 # Router to Fast App
 app.include_router(bot.router)
+app.include_router(user.router)
 
 @app.get('/')
 async def root():
