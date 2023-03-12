@@ -8,21 +8,21 @@ from firebase_admin import credentials, db
 from dotenv import load_dotenv, find_dotenv
 
 
-# Load .env variables
-load_dotenv(find_dotenv())
-REALTIME_DB_URL = os.getenv("REALTIME_DB_URL")
-FIREBASE_PRIV_KEY = os.getenv("FIREBASE_PRIV_KEY")
-
-
 class RealtimeDB:
     
-    creds = credentials.Certificate(FIREBASE_PRIV_KEY)
-    firebase_admin.initialize_app(
-        creds, 
-        {
-            'databaseURL': REALTIME_DB_URL
-        }
-    )
+    # Load .env variables
+    load_dotenv(find_dotenv())
+    REALTIME_DB_URL = os.getenv("REALTIME_DB_URL")
+    FIREBASE_PRIV_KEY = os.getenv("FIREBASE_PRIV_KEY")
+    
+    def __init__(self):
+        creds = credentials.Certificate(self.FIREBASE_PRIV_KEY)
+        firebase_admin.initialize_app(
+            creds, 
+            {
+                'databaseURL': self.REALTIME_DB_URL
+            }
+        )
     
     def upload(self, label, img_arr):
         
@@ -43,3 +43,4 @@ class RealtimeDB:
             return img_arr
         elif mode == "file":
             image.save('./assets/test.jpg')
+
