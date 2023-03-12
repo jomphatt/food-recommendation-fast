@@ -1,6 +1,5 @@
 import os
 import random
-import json
 from dotenv import load_dotenv, find_dotenv
 
 # FastAPI
@@ -11,6 +10,9 @@ from linebot import *
 from linebot.exceptions import InvalidSignatureError
 from linebot.models import TextMessage, MessageEvent, TextSendMessage, StickerMessage, \
     StickerSendMessage, ImageMessage, FlexSendMessage
+    
+# Import food recognition class
+from routers.line_bot.food_recognition import FoodRecognition
 
 
 router = APIRouter(
@@ -27,7 +29,7 @@ line_bot_api = LineBotApi(os.getenv("CHANNEL_ACCESS_TOKEN"))
 handler = WebhookHandler(os.getenv("CHANNEL_SECRET"))
 
 # List of all menus
-menu_file = open("./menus.txt", "r")
+menu_file = open("./assets/menus.txt", "r")
 menu_list = menu_file.readlines()
 
 
@@ -39,7 +41,7 @@ def get_template(menu_image: str, menu_name: str, menu_calorie: str) -> dict:
             "type": "image",
             "url": menu_image,
             "size": "full",
-            "aspectRatio": "4:5",
+            "aspectRatio": "10:9",
             "aspectMode": "cover"
         },
         "body": {
@@ -50,7 +52,8 @@ def get_template(menu_image: str, menu_name: str, menu_calorie: str) -> dict:
                     "type": "text",
                     "text": menu_name,
                     "weight": "bold",
-                    "size": "xl"
+                    "size": "xl",
+                    "wrap": True
                 },
                 {
                     "type": "box",
@@ -110,21 +113,20 @@ async def callback(request: Request, x_line_signature=Header(None)):
 def message_text(event):
     print(event)
     if event.message.text == "Give me food recommendations.":
-        # Replace this with an actual code for recommendation model
-        recommended_menus = random.sample(menu_list, 5)
-        content = []
+        recommended_menus = random.sample(menu_list, 5) # Replace this with an actual code for recommendation model
+        contents = []
         for rm in recommended_menus:
             menu_flex = get_template(
                 menu_image="https://thumbs.dreamstime.com/b/people-eating-healthy-meals-wooden-table-top-view-food-delivery-people-eating-healthy-meals-wooden-table-food-delivery-160387494.jpg",
                 menu_name=rm,
                 menu_calorie=str(500)
             )
-            content.append(menu_flex)
+            contents.append(menu_flex)
         flex_message = FlexSendMessage(
-            alt_text='recommended_menus',
+            alt_text='Check out our recommended menus!',
             contents={
                 "type": "carousel",
-                "contents": content
+                "contents": contents
             }
         )
         line_bot_api.reply_message(
@@ -134,16 +136,32 @@ def message_text(event):
     else:
         pass
 
+  
+@handler.add(MessageEvent, message=ImageMessage)
+def image_text(event):
+    
+    message_id = event.message.id
+    message_content = line_bot_api.get_message_content(message_id)
+    
+    img_path = f"./assets/inputs/{message_id}.jpg"
+    with open(img_path, 'wb') as fd:
+        for chunk in message_content.iter_content():
+            fd.write(chunk)
+    
+    food_recognition = FoodRecognition()
+    prediction = food_recognition.predict(img_path)
+    line_bot_api.reply_message(
+        event.reply_token,
+        TextSendMessage(text=prediction) 
+    )
+    
+    if os.path.exists(img_path):
+        os.remove(img_path)
+    else:
+        print("The file does not exist.")
+
 
 @handler.add(MessageEvent, message=StickerMessage)
 def sticker_text(event):
-    # Judge condition
-    line_bot_api.reply_message(
-        event.reply_token,
-        StickerSendMessage(package_id='6136', sticker_id='10551379')
-    )
-
-
-@handler.add(MessageEvent, message=ImageMessage)
-def sticker_text(event):
     pass
+
