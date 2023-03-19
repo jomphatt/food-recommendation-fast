@@ -1,9 +1,6 @@
 import os
-import base64
 import uuid
-import numpy as np
-from io import BytesIO
-from PIL import Image
+import datetime
 import firebase_admin
 from firebase_admin import credentials, storage
 from dotenv import load_dotenv, find_dotenv
@@ -37,3 +34,10 @@ class FirebaseStorage:
         blob = bucket.blob(uploaded_path)
         blob.upload_from_filename(img_path)
 
+
+    def get_image_urls(self, firebase_img_path):
+
+        bucket = storage.bucket()
+        blob = bucket.blob(firebase_img_path)
+        url = blob.generate_signed_url(expiration=datetime.timedelta(hours=1))
+        return url

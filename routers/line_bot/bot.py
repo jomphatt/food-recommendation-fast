@@ -1,5 +1,8 @@
 import os
 import random
+import string
+import requests
+import pandas as pd
 from dotenv import load_dotenv, find_dotenv
 
 # FastAPI
@@ -8,11 +11,14 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Header
 # Line-Bot SDK
 from linebot import *
 from linebot.exceptions import InvalidSignatureError
-from linebot.models import TextMessage, MessageEvent, TextSendMessage, StickerMessage, \
-    StickerSendMessage, ImageMessage, FlexSendMessage
+from linebot.models import MessageEvent, TextMessage, StickerMessage, \
+    ImageMessage, StickerSendMessage, TextSendMessage, FlexSendMessage
     
 # Import food recognition class
 from routers.line_bot.food_recognition import FoodRecognition
+
+# Import Firebase Storage class
+from routers.line_bot.firebase_storage import FirebaseStorage
 
 
 router = APIRouter(
@@ -28,9 +34,17 @@ load_dotenv(find_dotenv())
 line_bot_api = LineBotApi(os.getenv("CHANNEL_ACCESS_TOKEN"))
 handler = WebhookHandler(os.getenv("CHANNEL_SECRET"))
 
+firebase_storage = FirebaseStorage()
+food_recognition = FoodRecognition()
+
 # List of all menus
-menu_file = open("./assets/menus.txt", "r")
-menu_list = menu_file.readlines()
+# menu_file = open("./assets/menus.txt", "r")
+# menu_list = menu_file.readlines()
+menu_df = pd.read_csv("./assets/menus.csv")
+menu_ids = menu_df["id"].values.tolist()
+
+BASE_DB_URL = "https://22c6-2405-9800-bc00-15b4-830-190b-c10d-5dd.ap.ngrok.io/"
+MENU_DB_URL = BASE_DB_URL + "menus/"
 
 
 def get_template(menu_image: str, menu_name: str, menu_calorie: str) -> dict:
@@ -113,13 +127,25 @@ async def callback(request: Request, x_line_signature=Header(None)):
 def message_text(event):
     print(event)
     if event.message.text == "Give me food recommendations.":
-        recommended_menus = random.sample(menu_list, 5) # Replace this with an actual code for recommendation model
+        # Replace this with an actual code for recommendation model
+        # recommended_menus = random.sample(menu_list, 5)
+        recommended_menu_ids = random.sample(menu_ids, 5)
+        r = requests.get(MENU_DB_URL)
+        menu_db = r.json()
         contents = []
-        for rm in recommended_menus:
+        for rm_id in recommended_menu_ids:
+            img_url = firebase_storage.get_image_urls(f"flex_images/{rm_id}.jpeg")
+            # menu = menu_df[menu_df['id'] == rm_id]
+            # menu_calorie = menu['calorie'].values[0]
+            # menu_name = menu['name'].values[0]
+            menu = menu_db[str(rm_id)]
+            menu_calorie = menu['calorie']
+            menu_name = menu['name']
+            
             menu_flex = get_template(
-                menu_image="https://thumbs.dreamstime.com/b/people-eating-healthy-meals-wooden-table-top-view-food-delivery-people-eating-healthy-meals-wooden-table-food-delivery-160387494.jpg",
-                menu_name=rm,
-                menu_calorie=str(500)
+                menu_image=img_url,
+                menu_name=string.capwords(menu_name),
+                menu_calorie=str(int(menu_calorie))
             )
             contents.append(menu_flex)
         flex_message = FlexSendMessage(
@@ -147,9 +173,12 @@ def image_text(event):
     with open(img_path, 'wb') as fd:
         for chunk in message_content.iter_content():
             fd.write(chunk)
-    
-    food_recognition = FoodRecognition()
+
     prediction = food_recognition.predict(img_path)
+    # menu = menu_df[menu_df['id'] == rm]
+    # menu_calorie = menu['calorie'].values[0]
+    # menu_name = menu['name'].values[0]
+    firebase_storage.upload_retrain_image(prediction, img_path)
     line_bot_api.reply_message(
         event.reply_token,
         TextSendMessage(text=prediction) 

@@ -6,8 +6,7 @@ from tensorflow.keras.models import Model, model_from_json
 from tensorflow.keras.preprocessing import image
 from tensorflow.keras.applications.vgg19 import preprocess_input as preprocess_input_VGG19_model
 
-# Import Firebase classes
-from routers.line_bot.realtime_db import RealtimeDB
+# Import Firebase Storage class
 from routers.line_bot.firebase_storage import FirebaseStorage
 
 class FoodRecognition:
@@ -66,16 +65,6 @@ class FoodRecognition:
     vgg19_h5_path = "./assets/models/VGG19_model.h5"
     
     
-    def _upload_realtime_db(self, label, img_arr):
-        realtime_db = RealtimeDB()
-        realtime_db.upload(label, img_arr)
-    
-    
-    def _upload_storage(self, label, img_path):
-        firebase_storage = FirebaseStorage()
-        firebase_storage.upload_retrain_image(label, img_path)
-    
-    
     def predict(self, img_path):
         """Predict a menu from a file path to a food image.
 
@@ -102,12 +91,6 @@ class FoodRecognition:
         y_pred = model.predict(img_arr, batch_size=1)
         y_pred = np.argmax(y_pred)
         prediction = self.prediction_classes[y_pred]
-        
-        # Upload to Firebase Realtime Database for re-training
-        # self._upload_realtime_db(prediction, img_arr)
-        
-        # Upload to Firebase Storage for re-training
-        self._upload_storage(prediction, img_path)
         
         return prediction
     
