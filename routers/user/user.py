@@ -1,6 +1,7 @@
 # FastAPI
 from fastapi import APIRouter, Depends, HTTPException, Request, Header
 from sqlalchemy.orm import Session
+from typing import List
 
 import schemas, database
 from routers.user import crud
@@ -27,7 +28,7 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Line ID already registered")
     return crud.create_user(db=db, user=user)
 
-@router.get("/", response_model=schemas.User)
+@router.get("/", response_model=List[schemas.User])
 def read_users(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     return crud.get_users(db, skip=skip, limit=limit)
 

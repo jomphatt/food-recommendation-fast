@@ -68,12 +68,12 @@ class FoodRecognition:
     def predict(self, img_path):
         """Predict a menu from a file path to a food image.
 
-        Args:
-            img_path (str): Food image file path
+#         Args:
+#             img_path (str): Food image file path
 
-        Returns:
-            prediction (str): Predicted menu
-        """
+#         Returns:
+#             prediction (str): Predicted menu
+#         """
         
         food_img = image.load_img(img_path, target_size=(224, 224))
 
