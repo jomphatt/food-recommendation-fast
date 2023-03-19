@@ -1,20 +1,21 @@
-Chicken noodles
-Fried chicken with sticky rice
-Fried pork curry with rice
-Grilled pork with sticky rice
-Lek tom yam
-Mama nam tok
-Pork blood soup
-Pork congee
-Pork suki
-Rice topped with stir-fried pork and basil
-Rice with roasted pork
-Roasted red pork dumpling
-Roasted red pork noodles
-Scrambled egg with rice
-Sliced grilled pork salad
-Spicy fried chicken salad with sticky rice
-Steamed rice with chicken
-Steamed rice with fried chicken
-Stir-fried rice noodles with chicken
-Stir-fried rice noodles with soy sauce and pork
+id,name,calorie
+1,Chicken noodles,100
+2,Fried chicken with sticky rice,200
+3,Fried pork curry with rice,300
+4,Grilled pork with sticky rice,400
+5,Lek tom yam,500
+6,Mama nam tok,600
+7,Pork blood soup,700
+8,Pork congee,800
+9,Pork suki,900
+10,Rice topped with stir-fried pork and basil,1000
+11,Rice with roasted pork,1100
+12,Roasted red pork dumpling,1200
+13,Roasted red pork noodles,1300
+14,Scrambled egg with rice,1400
+15,Sliced grilled pork salad,1500
+16,Spicy fried chicken salad with sticky rice,1600
+17,Steamed rice with chicken,1700
+18,Steamed rice with fried chicken,1800
+19,Stir-fried rice noodles with chicken,1900
+20,Stir-fried rice noodles with soy sauce and pork,2000
