@@ -1,9 +1,6 @@
 # Import general libraries
 import os
-import random
 import string
-import requests
-import pandas as pd
 from dotenv import load_dotenv, find_dotenv
 
 # Import FastAPI
@@ -28,15 +25,6 @@ load_dotenv(find_dotenv())
 line_bot_api = LineBotApi(os.getenv("CHANNEL_ACCESS_TOKEN"))
 handler = WebhookHandler(os.getenv("CHANNEL_SECRET"))
 
-# Declare database URLs
-# TODO: 
-# Put the databases in a directory, e.g. /databases/menus. 
-# And put the base URL in .env.
-BASE_DB_URL = "https://c6b0-171-98-30-190.ap.ngrok.io/"
-MENU_DB_URL = BASE_DB_URL + "menus/"
-ORDER_DB_URL = BASE_DB_URL + "orders/"
-USER_DB_URL = BASE_DB_URL + "users/"
-
 # Declare LINE bot API router
 router = APIRouter(
     prefix="/bot",
@@ -45,25 +33,9 @@ router = APIRouter(
 )
 
 # Declare custom classes
-firebase_storage = FirebaseStorage()
+food_recommendation = FoodRecommendation()
 food_recognition = FoodRecognition()
-
-
-# TODO:
-# Replace the codes that randoms recommended menus with the food recommendation model
-# and move the function to a new class named "FoodRecommendation".
-def recommend_menus() -> list:
-    """Recommend menus.
-
-    Returns:
-        recommended_menus (list): List of recommended menus. Each menu is a dictionary.
-    """
-    r = requests.get(MENU_DB_URL)
-    menu_db = r.json()
-    menu_ids = [id for id in menu_db.keys()]
-    recommended_menu_ids = random.sample(menu_ids, 5)
-    recommended_menus = [menu_db[id] for id in recommended_menu_ids]
-    return recommended_menus
+firebase_storage = FirebaseStorage()
 
 def create_menu_bubble(menu_image_url: str, menu_name: str, menu_calorie: str) -> dict:
     """Create a bubble message of a menu to be added to a carousel.
@@ -186,7 +158,7 @@ def text_message(event):
     """
     if event.message.text == "Give me food recommendations.":
         # Get a list of recommended menus
-        recommended_menus = recommend_menus()
+        recommended_menus = food_recommendation.recommend_menus()
         
         # Create a carousel message of recommended menus
         menu_carousel = create_menu_carousel(recommended_menus)
