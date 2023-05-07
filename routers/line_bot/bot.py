@@ -1,3 +1,4 @@
+# Import general libraries
 import os
 import random
 import string
@@ -5,55 +6,82 @@ import requests
 import pandas as pd
 from dotenv import load_dotenv, find_dotenv
 
-# FastAPI
+# Import FastAPI
 from fastapi import APIRouter, Depends, HTTPException, Request, Header
 
-# Line-Bot SDK
+# Import LINE Messaging API SDK
 from linebot import *
 from linebot.exceptions import InvalidSignatureError
 from linebot.models import MessageEvent, TextMessage, StickerMessage, \
     ImageMessage, StickerSendMessage, TextSendMessage, FlexSendMessage
-    
-# Import food recognition class
-from routers.line_bot.food_recognition import FoodRecognition
 
-# Import Firebase Storage class
+# Import custom classes
+from routers.line_bot.food_recommendation import FoodRecommendation
+from routers.line_bot.food_recognition import FoodRecognition
 from routers.line_bot.firebase_storage import FirebaseStorage
 
 
+# Load environment variables
+load_dotenv(find_dotenv())
+
+# Declare LINE bot and webhook
+line_bot_api = LineBotApi(os.getenv("CHANNEL_ACCESS_TOKEN"))
+handler = WebhookHandler(os.getenv("CHANNEL_SECRET"))
+
+# Declare database URLs
+# TODO: 
+# Put the databases in a directory, e.g. /databases/menus. 
+# And put the base URL in .env.
+BASE_DB_URL = "https://c6b0-171-98-30-190.ap.ngrok.io/"
+MENU_DB_URL = BASE_DB_URL + "menus/"
+ORDER_DB_URL = BASE_DB_URL + "orders/"
+USER_DB_URL = BASE_DB_URL + "users/"
+
+# Declare LINE bot API router
 router = APIRouter(
     prefix="/bot",
     tags=["bot"],
     responses={404: {"description": "Not found"}}
 )
 
-# Load .env variables
-load_dotenv(find_dotenv())
-
-# Initiate LineBot & Webhook
-line_bot_api = LineBotApi(os.getenv("CHANNEL_ACCESS_TOKEN"))
-handler = WebhookHandler(os.getenv("CHANNEL_SECRET"))
-
+# Declare custom classes
 firebase_storage = FirebaseStorage()
 food_recognition = FoodRecognition()
 
-# List of all menus
-# menu_file = open("./assets/menus.txt", "r")
-# menu_list = menu_file.readlines()
-menu_df = pd.read_csv("./assets/menus.csv")
-menu_ids = menu_df["id"].values.tolist()
 
-BASE_DB_URL = "https://22c6-2405-9800-bc00-15b4-830-190b-c10d-5dd.ap.ngrok.io/"
-MENU_DB_URL = BASE_DB_URL + "menus/"
+# TODO:
+# Replace the codes that randoms recommended menus with the food recommendation model
+# and move the function to a new class named "FoodRecommendation".
+def recommend_menus() -> list:
+    """Recommend menus.
 
+    Returns:
+        recommended_menus (list): List of recommended menus. Each menu is a dictionary.
+    """
+    r = requests.get(MENU_DB_URL)
+    menu_db = r.json()
+    menu_ids = [id for id in menu_db.keys()]
+    recommended_menu_ids = random.sample(menu_ids, 5)
+    recommended_menus = [menu_db[id] for id in recommended_menu_ids]
+    return recommended_menus
 
-def get_template(menu_image: str, menu_name: str, menu_calorie: str) -> dict:
-    return (
-        {
+def create_menu_bubble(menu_image_url: str, menu_name: str, menu_calorie: str) -> dict:
+    """Create a bubble message of a menu to be added to a carousel.
+
+    Args:
+        menu_image_url (str): Firebase URL of the menu image.
+        menu_name (str): Menu name.
+        menu_calorie (str): Menu calorie.
+
+    Returns:
+        menu_bubble (dict): Bubble message of a menu.
+    """
+    
+    menu_bubble = {
         "type": "bubble",
         "hero": {
             "type": "image",
-            "url": menu_image,
+            "url": menu_image_url,
             "size": "full",
             "aspectRatio": "10:9",
             "aspectMode": "cover"
@@ -102,61 +130,77 @@ def get_template(menu_image: str, menu_name: str, menu_calorie: str) -> dict:
             ]
         }
     }
-    )
+    
+    return menu_bubble
+
+def create_menu_carousel(menus: list) -> dict:
+    """Create a carousel message of menus.
+
+    Args:
+        menus (list): List of menus. Each menu is a dictionary.
+
+    Returns:
+        menu_carousel (dict): Carousel message of menus.
+    """
+    menu_carousel = []
+    for menu in menus:
+        menu_id = list(menu.keys())[0]
+        menu_image_url = firebase_storage.get_image_urls(f"flex_images/{menu_id}.jpeg")
+        menu_calorie = menu[menu_id]['calorie']
+        menu_name = menu[menu_id]['name']
+        
+        menu_bubble = create_menu_bubble(
+            menu_image_url=menu_image_url,
+            menu_name=string.capwords(menu_name),
+            menu_calorie=str(int(menu_calorie))
+        )
+        menu_carousel.append(menu_bubble)
+        
+    return menu_carousel
 
 
 @router.get("/")
-async def root_bot():
-    return {'message': 'Root Bot'}
+async def root():
+    reponse = {"message": "OK"}
+    return reponse
 
 
 @router.post("/callback")
 async def callback(request: Request, x_line_signature=Header(None)):
     body = await request.body()
-    print(body)
     try:
         handler.handle(body.decode("utf-8"), x_line_signature)
-
+    
     except InvalidSignatureError:
         raise HTTPException(status_code=400, detail="InvalidSignatureError")
-
-    return "OK"
+    response = {"message": "OK"}
+    return response
 
 
 @handler.add(MessageEvent, message=TextMessage)
-def message_text(event):
-    print(event)
+def text_message(event):
+    """Handle text messages, including requests for food recommendations sent by users.
+
+    Args:
+        event (MessageEvent): LINE text message event.
+    """
     if event.message.text == "Give me food recommendations.":
-        # Replace this with an actual code for recommendation model
-        # recommended_menus = random.sample(menu_list, 5)
-        recommended_menu_ids = random.sample(menu_ids, 5)
-        r = requests.get(MENU_DB_URL)
-        menu_db = r.json()
-        contents = []
-        for rm_id in recommended_menu_ids:
-            img_url = firebase_storage.get_image_urls(f"flex_images/{rm_id}.jpeg")
-            # menu = menu_df[menu_df['id'] == rm_id]
-            # menu_calorie = menu['calorie'].values[0]
-            # menu_name = menu['name'].values[0]
-            menu = menu_db[str(rm_id)]
-            menu_calorie = menu['calorie']
-            menu_name = menu['name']
-            
-            menu_flex = get_template(
-                menu_image=img_url,
-                menu_name=string.capwords(menu_name),
-                menu_calorie=str(int(menu_calorie))
-            )
-            contents.append(menu_flex)
+        # Get a list of recommended menus
+        recommended_menus = recommend_menus()
+        
+        # Create a carousel message of recommended menus
+        menu_carousel = create_menu_carousel(recommended_menus)
+        
+        # Send the carousel message to the user
         flex_message = FlexSendMessage(
             alt_text='Check out our recommended menus!',
             contents={
                 "type": "carousel",
-                "contents": contents
+                "contents": menu_carousel
             }
         )
         line_bot_api.reply_message(
-            event.reply_token,
+            event.reply_token, 
             flex_message
         )
     else:
@@ -164,33 +208,52 @@ def message_text(event):
 
   
 @handler.add(MessageEvent, message=ImageMessage)
-def image_text(event):
+def image_message(event):
+    """Handle image messages by recognizing the menu of the food in the image.
+
+    Args:
+        event (MessageEvent): LINE image message event.
+    """
     
+    # Save the image to the local storage
     message_id = event.message.id
     message_content = line_bot_api.get_message_content(message_id)
-    
     img_path = f"./assets/inputs/{message_id}.jpg"
     with open(img_path, 'wb') as fd:
         for chunk in message_content.iter_content():
             fd.write(chunk)
 
-    prediction = food_recognition.predict(img_path)
-    # menu = menu_df[menu_df['id'] == rm]
-    # menu_calorie = menu['calorie'].values[0]
-    # menu_name = menu['name'].values[0]
-    firebase_storage.upload_retrain_image(prediction, img_path)
-    line_bot_api.reply_message(
-        event.reply_token,
-        TextSendMessage(text=prediction) 
-    )
-    
+    # Check if the image contains food
+    is_food = food_recognition.is_food(img_path)
+    if is_food:
+        # Recognize the menu
+        prediction = food_recognition.recognize_menu(img_path)
+        
+        # Upload the image to Firebase Storage for retraining
+        # firebase_storage.upload_retrain_image(prediction, img_path)
+        
+        # Send the prediction to the user
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text=prediction) 
+        )
+    else:
+        # Send a warning message to the user
+        # TODO: Modify the warning message
+        warning_msg = "The image does not contain food."
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text=warning_msg) 
+        )
+
+    # Delete the image from the local storage
     if os.path.exists(img_path):
         os.remove(img_path)
     else:
-        print("The file does not exist.")
+        print(f'The image path "{img_path}" does not exist.')
 
 
 @handler.add(MessageEvent, message=StickerMessage)
-def sticker_text(event):
+def sticker_message(event):
     pass
 
