@@ -166,4 +166,4 @@ yarn-debug.log*
 yarn-error.log*
 
 # Firebase service account's private key file
-eatwise-a3ea2-firebase-adminsdk-igwpz-101bdbad9b.json
+eatwise-a3ea2-firebase-adminsdk-*.json
