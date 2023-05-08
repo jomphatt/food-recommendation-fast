@@ -4,16 +4,22 @@ import random
 import requests
 from dotenv import load_dotenv, find_dotenv
 
+
+# Load environment variables
+load_dotenv(find_dotenv())
+
+# Declare database URLs
+# TODO: 
+# Put the databases in a directory, e.g. /databases/menus and put the base URL in .env.
+# API_ENDPOINT_URL = os.getenv("API_ENDPOINT_URL")
+# BASE_DB_URL = API_ENDPOINT_URL + "databases/"
+BASE_DB_URL = "https://c6b0-171-98-30-190.ap.ngrok.io/"
+MENU_DB_URL = BASE_DB_URL + "menus/"
+ORDER_DB_URL = BASE_DB_URL + "orders/"
+USER_DB_URL = BASE_DB_URL + "users/"
+
+
 class FoodRecommendation:
-    
-    # Declare database URLs
-    # TODO: 
-    # Put the databases in a directory, e.g. /databases/menus and put the base URL in .env.
-    BASE_DB_URL = "https://c6b0-171-98-30-190.ap.ngrok.io/"
-    MENU_DB_URL = BASE_DB_URL + "menus/"
-    ORDER_DB_URL = BASE_DB_URL + "orders/"
-    USER_DB_URL = BASE_DB_URL + "users/"
-    
     
     def __init__(self):
         pass
@@ -30,7 +36,7 @@ class FoodRecommendation:
             recommended_menus (list): List of recommended menus. Each menu is a dictionary.
         """
         
-        r = requests.get(self.MENU_DB_URL)
+        r = requests.get(MENU_DB_URL)
         menu_db = r.json()
         menu_ids = [id for id in menu_db.keys()]
         recommended_menu_ids = random.sample(menu_ids, n_menus)
