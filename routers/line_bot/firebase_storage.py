@@ -10,7 +10,6 @@ class FirebaseStorage:
     
     # Load .env variables
     load_dotenv(find_dotenv())
-    REALTIME_DB_URL = os.getenv("REALTIME_DB_URL")
     FIREBASE_PRIV_KEY = os.getenv("FIREBASE_PRIV_KEY")
     
     
@@ -21,7 +20,7 @@ class FirebaseStorage:
             creds,
             {
                 'storageBucket': 'eatwise-a3ea2.appspot.com'
-                }
+            }
         )
     
     
@@ -41,3 +40,4 @@ class FirebaseStorage:
         blob = bucket.blob(firebase_img_path)
         url = blob.generate_signed_url(expiration=datetime.timedelta(hours=1))
         return url
+
