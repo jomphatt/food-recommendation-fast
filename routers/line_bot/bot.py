@@ -207,18 +207,15 @@ def image_message(event):
         predicted_menu = menu_crud.get_menu_by_id(predicted_menu_id)
         
         # Declare text message to be sent to the users
-        
-        
-        
-        predicted_menu_id = str(predicted_menu_id) # TODO: Remove this line
+        text_response = f"We detected {predicted_menu['name']}. Is it correct? (y/n)"
         
         # Upload the image to Firebase Storage for retraining
-        # firebase_storage.upload_retrain_image(prediction, img_path)
+        # firebase_storage.upload_retrain_image(predicted_menu_id, img_path)
         
         # Send the prediction to the user
         line_bot_api.reply_message(
             event.reply_token,
-            TextSendMessage(text=predicted_menu_id) 
+            TextSendMessage(text=text_response) 
         )
     else:
         # Send a warning message to the user
