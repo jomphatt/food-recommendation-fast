@@ -1,96 +1,82 @@
 # Import general libraries
 import numpy as np
-import pandas as pd
-from PIL import Image
 
-# Import TensorFlow
-from tensorflow.keras.models import Model, model_from_json
-from tensorflow.keras.preprocessing import image
-from tensorflow.keras.applications.vgg19 import preprocess_input as preprocess_input_VGG19_model
+# Import Keras libraries
+from keras.models import Model, model_from_json
+from keras.preprocessing import image
+from keras.applications.vgg19 import preprocess_input as preprocess_input_vgg19
+from keras.applications.inception_v3 import preprocess_input as preprocess_input_inception_v3
+
+# Import Onnx runtime
+import onnxruntime as ort
 
 
 class FoodRecognition:
     
-    # Food labels
-    prediction_classes = {
-        0:'chicken_noodle',
-        1: 'dumplings',
-        2: 'fried_chicken',
-        3: 'fried_chicken_salad_sticky_rice',
-        4: 'fried_pork_curry_rice',
-        5: 'grilled_pork_with_sticky_rice',
-        6: 'lek_tom_yam',
-        7: 'mama_namtok',
-        8: 'pork_blood_soup',
-        9: 'pork_congee',
-        10: 'pork_suki',
-        11: 'rice_scramble_egg',
-        12: 'rice_topped_with_stir_fried_pork_and_basil',
-        13: 'rice_with_roasted_pork',
-        14: 'roasted_red_pork_noodle',
-        15: 'sliced_grilled_pork_salad',
-        16: 'steamed_rice_with_chicken',
-        17: 'steamed_rice_with_fried_chicken',
-        18: 'stir_fried_rice_noodles_with_chicken',
-        19: 'stir_fried_rice_noodles_with_soy_sauce_and_pork'
-    }
+    # TODO: Pull prediction classes from Menu database. 
+
+
+    # Declare Onnx version of VGG-19 model path for food/non-food classification
+    vgg19_model_path = "./assets/models/vgg19_model.onnx"
     
-    # This is how the dict supposes to look like once Pann finished training the new model.
-    # Also, we can store this dict in a JSON file, so the code looks cleaner.
-    actual_classes = {
-        1: 'chicken_noodles',
-        2: 'fried_chicken_with_sticky_rice',
-        3: 'fried_pork_curry_with_rice',
-        4: 'grilled_pork_with_sticky_rice',
-        5: 'lek_tom_yam',
-        6: 'mama_nam_tok',
-        7: 'pork_blood_soup',
-        8: 'pork_congee',
-        9: 'pork_suki',
-        10: 'rice_topped_with_stir_fried_pork_and_basil', # Should be 'stir_fried_pork_and_basil_with_rice'
-        11: 'rice_with_roasted_pork', # Should be 'roasted_pork_with_rice'
-        12: 'roasted_red_pork_dumplings',
-        13: 'roasted_red_pork_noodle',
-        14: 'scrambled_egg_with_rice',
-        15: 'sliced_grilled_pork_salad',
-        16: 'spicy_fried_chicken_with_sticky_rice',
-        17: 'steamed_rice_with_chicken',
-        18: 'steamed_rice_with_fried_chicken',
-        19: 'stir_fried_rice_noodles_with_chicken',
-        20: 'stir_fried_rice_noodles_with_soy_sauce_and_pork'
-    }
-
-    # Paths to the VGG-19 model
-    vgg19_json_path = "./assets/models/VGG19_model.json"
-    vgg19_h5_path = "./assets/models/VGG19_model.h5"
+    # Declare Onnx version of InceptionV3 model path for food menu recognition
+    inception_v3_model_path = "./assets/models/inception_v3_model.onnx"
     
-    def recognize_menu(self, img_path):
-        """Predict a menu from a food image path.
-
-        Args:
-            img_path (str): Food image path.
-
-        Returns:
-            predicted_menu_id (int): Predicted menu ID.
-        """
+    
+    def __create_onnx_session(self, model_path):
         
+        # Load Onnx model
+        onnx_session = ort.InferenceSession(model_path)
+        
+        # Get model input and output names
+        input_name = onnx_session.get_inputs()[0].name
+        output_name = onnx_session.get_outputs()[0].name
+        
+        return onnx_session, input_name, output_name
+
+    
+    def __preprocess_image(self, img_path):
+        
+        # Load and resize image
         food_img = image.load_img(img_path, target_size=(224, 224))
 
+        # Convert image to Numpy array and expand its dimension
         img_arr = image.img_to_array(food_img)
         img_arr = np.expand_dims(img_arr, axis=0)
-        img_arr = preprocess_input_VGG19_model(img_arr)
         
-        json_file = open(self.vgg19_json_path, 'r')
-        model_json = json_file.read()
-        json_file.close()
+        return img_arr
+    
+    
+    def is_food(self, img_path):
         
-        model = model_from_json(model_json)
-        model.load_weights(self.vgg19_h5_path) # Load weights into the model
+        # Create Onnx session for VGG-19 model
+        vgg19_onnx_session, vgg19_input_name, vgg19_output_name = self.__create_onnx_session(self.vgg19_model_path)
+        
+        # Preprocess image
+        img_arr = self.__preprocess_image(img_path)
 
-        y_pred = model.predict(img_arr, batch_size=1)
-        y_pred = np.argmax(y_pred)
-        prediction = self.prediction_classes[y_pred]
+        # Predict image
+        predictions = vgg19_onnx_session.run([vgg19_output_name], {vgg19_input_name: img_arr})[0]
+
+        # Post-process predictions
+        predicted_class = predictions[0][0]
+
+        return predicted_class == 1
+
+
+    def recognize_menu(self, img_path):
         
-        return prediction
-    
-    
+        # Create Onnx session for VGG-19 model
+        inception_v3_onnx_session, inception_v3_input_name, inception_v3_output_name = self.__create_onnx_session(self.inception_v3_model_path)
+        
+        # Preprocess image
+        img_arr = self.__preprocess_image(img_path)
+
+        # Predict image
+        predictions = inception_v3_onnx_session.run([inception_v3_output_name], {inception_v3_input_name: img_arr})[0]
+
+        # Post-process predictions
+        predicted_class = np.argmax(predictions)
+
+        return predicted_class
+
