@@ -168,4 +168,4 @@ yarn-error.log*
 eatwise-a3ea2-firebase-adminsdk-*.json
 
 # Model folder
-assets/models/*
+assets/models/
