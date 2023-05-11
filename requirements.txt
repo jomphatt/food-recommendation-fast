@@ -42,3 +42,4 @@ yarl==1.8.2
 onnxruntime==1.14.1
 azure-core==1.26.4
 azure-storage-blob==12.16.0
+alembic==1.10.4
