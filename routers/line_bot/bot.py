@@ -17,6 +17,9 @@ from routers.line_bot.food_recommendation import FoodRecommendation
 from routers.line_bot.food_recognition import FoodRecognition
 from routers.line_bot.firebase_storage import FirebaseStorage
 
+# Import databases
+import routers.menu.crud as menu_crud
+
 
 # Load environment variables
 load_dotenv(find_dotenv())
@@ -36,6 +39,7 @@ router = APIRouter(
 food_recommendation = FoodRecommendation()
 food_recognition = FoodRecognition()
 firebase_storage = FirebaseStorage()
+
 
 def create_menu_bubble(menu_image_url: str, menu_name: str, menu_calorie: str) -> dict:
     """Create a bubble message of a menu to be added to a carousel.
@@ -199,15 +203,19 @@ def image_message(event):
     is_food = food_recognition.is_food(img_path)
     if is_food:
         # Recognize the menu
-        prediction = food_recognition.recognize_menu(img_path)
+        predicted_menu_id = food_recognition.recognize_menu(img_path)
+        predicted_menu = menu_crud.get_menu_by_id(predicted_menu_id)
+        
+        # Declare text message to be sent to the users
+        text_response = f"We detected {predicted_menu['name']}. Is it correct? (y/n)"
         
         # Upload the image to Firebase Storage for retraining
-        # firebase_storage.upload_retrain_image(prediction, img_path)
+        # firebase_storage.upload_retrain_image(predicted_menu_id, img_path)
         
         # Send the prediction to the user
         line_bot_api.reply_message(
             event.reply_token,
-            TextSendMessage(text=prediction) 
+            TextSendMessage(text=text_response) 
         )
     else:
         # Send a warning message to the user
