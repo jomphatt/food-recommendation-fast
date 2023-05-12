@@ -19,6 +19,7 @@ from routers.line_bot.firebase_storage import FirebaseStorage
 
 # Import databases
 import routers.menu.crud as menu_crud
+import routers.order.crud as order_crud
 
 
 # Load environment variables
@@ -109,6 +110,118 @@ def create_menu_bubble(menu_image_url: str, menu_name: str, menu_calorie: str) -
     
     return menu_bubble
 
+def create_recognition_bubble(predicted_menu_image_url: str, predicted_menu: dict) -> dict:
+    
+    menu_name = predicted_menu['name']
+    selected_attrs = ['calorie', 'protein', 'fat', 'carbohydrate']
+
+    menu_nutrition_contents = []
+    for attr in selected_attrs:
+        menu_nutrition_contents.append(
+            {
+                "type": "box",
+                "layout": "baseline",
+                "spacing": "sm",
+                "contents": [
+                    {
+                        "type": "text",
+                        "text": string.capwords(attr),
+                        "color": "#aaaaaa",
+                        "size": "md",
+                        "flex": 2
+                    },
+                    {
+                        "type": "text",
+                        "text": str(predicted_menu[attr]),
+                        "wrap": True,
+                        "color": "#666666",
+                        "size": "md",
+                        "flex": 5
+                    }
+                ]
+            }
+        )
+    
+    recognition_bubble = {
+        "type": "bubble",
+        "hero": {
+            "type": "image",
+            "url": predicted_menu_image_url,
+            "size": "full",
+            "aspectRatio": "10:9",
+            "aspectMode": "cover"
+        },
+        "body": {
+            "type": "box",
+            "layout": "vertical",
+            "contents": [
+                {
+                    "type": "text",
+                    "text": menu_name,
+                    "weight": "bold",
+                    "size": "xl",
+                    "wrap": True
+                },
+                {
+                    "type": "box",
+                    "layout": "vertical",
+                    "margin": "lg",
+                    "spacing": "sm",
+                    "contents": menu_nutrition_contents
+                },
+                {
+                    "type": "text",
+                    "text": "Is our menu prediction correct?",
+                    "size": "sm",
+                    "margin": "xl"
+                }
+            ]
+        },
+        "footer": {
+            "type": "box",
+            "layout": "vertical",
+            "spacing": "sm",
+            "contents": [
+                {
+                    "type": "button",
+                    "style": "primary",
+                    "height": "sm",
+                    "action": {
+                        "type": "message",
+                        "label": "YES",
+                        "text": "Yes, the menu prediction is correct."
+                    }
+                },
+                {
+                    "type": "button",
+                    "style": "primary",
+                    "height": "sm",
+                    "action": {
+                        "type": "uri",
+                        "label": "NO",
+                        "text": "No, the menu prediction is not correct."
+                        # "uri": "https://linecorp.com" # TODO: Change to the URL of the menu feedback LIFF form
+                    },
+                    "color": "#E00000"
+                }
+            ],
+            "flex": 0
+        }
+    }
+    
+    return recognition_bubble
+
+def create_daily_summary_bubble() -> dict:
+    """Create a bubble message of the daily summary.
+
+    Returns:
+        daily_summary_bubble (dict): Bubble message of the daily summary.
+    """
+    
+    create_daily_summary_bubble = {}
+    
+    return create_daily_summary_bubble
+
 def create_menu_carousel(menus: list) -> dict:
     """Create a carousel message of menus.
 
@@ -121,6 +234,7 @@ def create_menu_carousel(menus: list) -> dict:
     menu_carousel = []
     for menu in menus:
         menu_id = list(menu.keys())[0]
+        # TODO: Get the image URL from local instead of Firebase Storage
         menu_image_url = firebase_storage.get_image_urls(f"flex_images/{menu_id}.jpeg")
         menu_calorie = menu[menu_id]['calorie']
         menu_name = menu[menu_id]['name']
@@ -134,6 +248,10 @@ def create_menu_carousel(menus: list) -> dict:
         
     return menu_carousel
 
+
+# TODO: Implement this function
+def create_daily_summary_bubble():
+    pass
 
 @router.get("/")
 async def root():
@@ -166,8 +284,6 @@ def text_message(event):
         
         # Create a carousel message of recommended menus
         menu_carousel = create_menu_carousel(recommended_menus)
-        
-        # Send the carousel message to the user
         flex_message = FlexSendMessage(
             alt_text='Check out our recommended menus!',
             contents={
@@ -175,13 +291,32 @@ def text_message(event):
                 "contents": menu_carousel
             }
         )
-        line_bot_api.reply_message(
-            event.reply_token, 
-            flex_message
+    elif event.message.text == "Give me a daily summary.":
+        # Retrieve summarized nutrition values from the database
+        daily_summary = order_crud.get_daily_summary()
+        
+        # Get the summarized nutrition values
+        sum_calorie = daily_summary['sum_calorie']
+        sum_protein = daily_summary['sum_protein']
+        sum_fat = daily_summary['sum_fat']
+        sum_carbohydrate = daily_summary['sum_carbohydrate']
+        
+        # Create a bubble message of the daily summary
+        daily_summary_bubble = create_daily_summary_bubble()
+        flex_message = FlexSendMessage(
+            alt_text='Check out your daily summary!',
+            contents={
+                "type": "bubble",
+            }
         )
-    else:
-        pass
-
+    
+    # Send the message to the user
+    line_bot_api.reply_message(
+        event.reply_token, 
+        flex_message
+    )
+        
+        
   
 @handler.add(MessageEvent, message=ImageMessage)
 def image_message(event):
@@ -206,21 +341,31 @@ def image_message(event):
         predicted_menu_id = food_recognition.recognize_menu(img_path)
         predicted_menu = menu_crud.get_menu_by_id(predicted_menu_id)
         
-        # Declare text message to be sent to the users
-        text_response = f"We detected {predicted_menu['name']}. Is it correct? (y/n)"
+        # TODO: Get the image URL from local instead of Firebase Storage
+        # Get the image URL of the recognized menu
+        predicted_menu_image_url = firebase_storage.get_image_urls(f"flex_images/{predicted_menu_id}.jpeg")
+        
+        # Create a bubble message of the recognized menu
+        recognition_bubble = create_recognition_bubble(predicted_menu_image_url, predicted_menu)
+        
+        # Create a flex message of the recognized menu
+        flex_message = FlexSendMessage(
+            alt_text='Check out the menu prediction by EatWise!',
+            contents=recognition_bubble
+        )
         
         # Upload the image to Firebase Storage for retraining
         # firebase_storage.upload_retrain_image(predicted_menu_id, img_path)
         
-        # Send the prediction to the user
+        # Send the flex message containing the prediction bubble to the user
         line_bot_api.reply_message(
-            event.reply_token,
-            TextSendMessage(text=text_response) 
+            event.reply_token, 
+            flex_message
         )
     else:
         # Send a warning message to the user
         # TODO: Modify the warning message
-        warning_msg = "The image does not contain food."
+        warning_msg = "EatWise cannot recognize the food in the image."
         line_bot_api.reply_message(
             event.reply_token,
             TextSendMessage(text=warning_msg) 
