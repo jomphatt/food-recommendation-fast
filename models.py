@@ -26,6 +26,7 @@ class User(Base):
     birth_date = Column(DateTime(timezone=True), nullable=False)
     gender = Column(String, nullable=False)
     weight = Column(Float, nullable=False)
+    height = Column(Float, nullable=False)
     picture_url = Column(String)
     create_at = Column(DateTime(timezone=True), server_default=func.now())
 

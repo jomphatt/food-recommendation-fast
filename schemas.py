@@ -27,6 +27,7 @@ class UserBase(BaseModel):
     birth_date: datetime
     gender: str
     weight: float
+    height: float
     picture_url: str
 
 class UserCreate(UserBase):
