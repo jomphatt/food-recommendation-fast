@@ -121,6 +121,12 @@ def create_recognition_bubble(predicted_menu_image_url: str, predicted_menu: any
 
     menu_nutrition_contents = []
     for attr in selected_attrs:
+        
+        if attr == 'calorie':
+            unit = 'cal'
+        else:
+            unit = 'g'
+        
         menu_nutrition_contents.append(
             {
                 "type": "box",
@@ -129,14 +135,14 @@ def create_recognition_bubble(predicted_menu_image_url: str, predicted_menu: any
                 "contents": [
                     {
                         "type": "text",
-                        "text": string.capwords(attr),
+                        "text": f"{string.capwords(attr)} ({unit})"",
                         "color": "#aaaaaa",
                         "size": "md",
                         "flex": 1
                     },
                     {
                         "type": "text",
-                        "text": str(getattr(predicted_menu, attr)), # TODO: Add units
+                        "text": str(getattr(predicted_menu, attr)),
                         "wrap": True,
                         "color": "#666666",
                         "size": "md",
