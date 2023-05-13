@@ -17,10 +17,10 @@ class FoodRecognition:
 
 
     # Declare Onnx version of VGG-19 model path for food/non-food classification
-    vgg19_model_path = "./assets/models/vgg19_model.onnx"
+    vgg19_model_path = "./assets/models/vgg19_initial.onnx"
     
     # Declare Onnx version of InceptionV3 model path for food menu recognition
-    inception_v3_model_path = "./assets/models/inception_v3_model.onnx"
+    inception_v3_model_path = "./assets/models/inception-v3_initial.onnx"
     
     
     def __create_onnx_session(self, model_path):
@@ -81,7 +81,7 @@ class FoodRecognition:
         predictions = inception_v3_onnx_session.run([inception_v3_output_name], {inception_v3_input_name: img_arr})[0]
 
         # Post-process predictions
-        predicted_menu_id = np.argmax(predictions)
+        predicted_menu_id = int(np.argmax(predictions))
 
         return predicted_menu_id
 

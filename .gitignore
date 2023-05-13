@@ -167,3 +167,6 @@ yarn-error.log*
 
 # Firebase service account's private key file
 eatwise-a3ea2-firebase-adminsdk-*.json
+
+# Model folder
+assets/models
