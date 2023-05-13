@@ -1,10 +1,12 @@
 # Import general libraries
 import os
 import string
+from pathlib import Path
 from dotenv import load_dotenv, find_dotenv
 
 # Import FastAPI
 from fastapi import APIRouter, Depends, HTTPException, Request, Header
+from fastapi.responses import FileResponse
 
 # Import LINE Messaging API SDK
 from linebot import *
@@ -64,7 +66,7 @@ def __create_menu_bubble(menu_image_url: str, menu_name: str, menu_calorie: str)
             "type": "image",
             "url": menu_image_url,
             "size": "full",
-            "aspectRatio": "5:4",
+            "aspectRatio": "20:13",
             "aspectMode": "cover"
         },
         "body": {
@@ -91,7 +93,7 @@ def __create_menu_bubble(menu_image_url: str, menu_name: str, menu_calorie: str)
                             "contents": [
                                 {
                                     "type": "text",
-                                    "text": "Calorie",
+                                    "text": "Calorie (kcal)",
                                     "color": "#aaaaaa",
                                     "size": "md",
                                     "flex": 1
@@ -114,6 +116,32 @@ def __create_menu_bubble(menu_image_url: str, menu_name: str, menu_calorie: str)
     
     return menu_bubble
 
+def create_menu_carousel(menus: list) -> dict:
+    """Create a carousel message of menus.
+
+    Args:
+        menus (list): List of menus. Each menu is a dictionary.
+
+    Returns:
+        menu_carousel (dict): Carousel message of menus.
+    """
+    menu_carousel = []
+    for menu in menus:
+        menu_id = menu.id
+        # TODO: Get the image URL from our API endpoint of Firebase Storage
+        menu_image_url = firebase_storage.get_image_urls(f"flex_images/{menu_id}.jpeg")
+        menu_calorie = menu.calorie
+        menu_name = menu.name
+        
+        menu_bubble = __create_menu_bubble(
+            menu_image_url=menu_image_url,
+            menu_name=menu_name,
+            menu_calorie=str(int(menu_calorie))
+        )
+        menu_carousel.append(menu_bubble)
+        
+    return menu_carousel
+
 def create_recognition_bubble(predicted_menu_image_url: str, predicted_menu: any) -> dict:
     
     menu_name = predicted_menu.name
@@ -123,7 +151,7 @@ def create_recognition_bubble(predicted_menu_image_url: str, predicted_menu: any
     for attr in selected_attrs:
         
         if attr == 'calorie':
-            unit = 'cal'
+            unit = 'kcal'
         else:
             unit = 'g'
         
@@ -135,7 +163,7 @@ def create_recognition_bubble(predicted_menu_image_url: str, predicted_menu: any
                 "contents": [
                     {
                         "type": "text",
-                        "text": f"{string.capwords(attr)} ({unit})"",
+                        "text": f"{string.capwords(attr)} ({unit})",
                         "color": "#aaaaaa",
                         "size": "md",
                         "flex": 1
@@ -159,7 +187,7 @@ def create_recognition_bubble(predicted_menu_image_url: str, predicted_menu: any
             "type": "image",
             "url": predicted_menu_image_url,
             "size": "full",
-            "aspectRatio": "5:4",
+            "aspectRatio": "20:13",
             "aspectMode": "cover"
         },
         "body": {
@@ -188,6 +216,9 @@ def create_recognition_bubble(predicted_menu_image_url: str, predicted_menu: any
             "spacing": "sm",
             "contents": [
                 {
+                    "type": "separator"
+                },
+                {
                     "type": "button",
                     "style": "primary",
                     "height": "sm",
@@ -206,6 +237,12 @@ def create_recognition_bubble(predicted_menu_image_url: str, predicted_menu: any
                         "label": "INCORRECT",
                         "text": "No, the prediction is not correct." # TODO: Change type to uri and add a "uri" key with the value of the LIFF URL
                     }
+                },
+                {
+                    "type": "box",
+                    "layout": "vertical",
+                    "contents": [],
+                    "margin": "sm"
                 }
             ]
         }
@@ -213,6 +250,7 @@ def create_recognition_bubble(predicted_menu_image_url: str, predicted_menu: any
     
     return recognition_bubble
 
+# TODO: Implement this function
 def create_daily_summary_bubble() -> dict:
     """Create a bubble message of the daily summary.
 
@@ -220,46 +258,29 @@ def create_daily_summary_bubble() -> dict:
         daily_summary_bubble (dict): Bubble message of the daily summary.
     """
     
-    create_daily_summary_bubble = {}
+    daily_summary_bubble = {}
     
-    return create_daily_summary_bubble
+    return daily_summary_bubble
 
-def create_menu_carousel(menus: list) -> dict:
-    """Create a carousel message of menus.
-
-    Args:
-        menus (list): List of menus. Each menu is a dictionary.
-
-    Returns:
-        menu_carousel (dict): Carousel message of menus.
-    """
-    menu_carousel = []
-    for menu in menus:
-        menu_id = menu.id
-        # TODO: Get the image URL from local instead of Firebase Storage
-        menu_image_url = firebase_storage.get_image_urls(f"flex_images/{menu_id}.jpeg")
-        menu_calorie = menu.calorie
-        menu_name = menu.name
-        
-        menu_bubble = __create_menu_bubble(
-            menu_image_url=menu_image_url,
-            menu_name=menu_name,
-            menu_calorie=str(int(menu_calorie))
-        )
-        menu_carousel.append(menu_bubble)
-        
-    return menu_carousel
-
-
-# TODO: Implement this function
-def create_daily_summary_bubble():
+# TODO: Implement this function instead of using "get_image_url" function of Firebase Storage, 
+# so we can get the image URL directly from our API endpoint instead of Firebase Storage
+def get_flex_image_url():
     pass
+
 
 @router.get("/")
 async def root():
     reponse = {"message": "OK"}
     return reponse
 
+@router.get("/assets/images/flex_images/{image_name}")
+async def get_flex_image(image_name: str):
+    image_path = Path(f"assets/images/flex_images/{image_name}")
+    if image_path.is_file():
+        response = FileResponse(image_path)
+    else:
+        response = {"error": "Image not found"}
+    return response
 
 @router.post("/callback")
 async def callback(request: Request, x_line_signature=Header(None)):
@@ -316,10 +337,9 @@ def text_message(event):
     line_bot_api.reply_message(
         event.reply_token, 
         flex_message
-    )
+    )        
         
-        
-  
+
 @handler.add(MessageEvent, message=ImageMessage)
 def image_message(event):
     """Handle image messages by recognizing the menu of the food in the image.
@@ -343,7 +363,7 @@ def image_message(event):
         predicted_menu_id = food_recognition.recognize_menu(img_path)
         predicted_menu = menu_crud.get_menu(db, predicted_menu_id)
         
-        # TODO: Get the image URL from local instead of Firebase Storage
+        # TODO: Get the image URL from our API endpoint instead of Firebase Storage
         # Get the image URL of the recognized menu
         predicted_menu_image_url = firebase_storage.get_image_urls(f"flex_images/{predicted_menu_id}.jpeg")
         
@@ -366,8 +386,7 @@ def image_message(event):
         )
     else:
         # Send a warning message to the user
-        # TODO: Modify the warning message
-        warning_msg = "EatWise cannot recognize the food in the image."
+        warning_msg = "EatWise cannot recognize the food in the image. Please try again."
         line_bot_api.reply_message(
             event.reply_token,
             TextSendMessage(text=warning_msg) 
