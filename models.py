@@ -31,6 +31,7 @@ class User(Base):
     create_at = Column(DateTime(timezone=True), server_default=func.now())
 
     menus = relationship("Order", back_populates="user")
+    features = relationship("UserFeature", back_populates="user")
 
 class Menu(Base):
     __tablename__ = "menus"
