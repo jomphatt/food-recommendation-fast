@@ -31,6 +31,7 @@ class User(Base):
     create_at = Column(DateTime(timezone=True), server_default=func.now())
 
     menus = relationship("Order", back_populates="user")
+    features = relationship("UserFeature", back_populates="user")
 
 class Menu(Base):
     __tablename__ = "menus"
@@ -44,3 +45,23 @@ class Menu(Base):
     create_at = Column(DateTime(timezone=True), server_default=func.now())
 
     users = relationship("Order", back_populates="menu")
+
+class Feature(Base):
+    __tablename__ = "features"
+
+    id = Column(Integer, primary_key=True, index=True, nullable=False)
+    name = Column(String, nullable=False)
+    create_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    users = relationship("UserFeature", back_populates="feature")
+
+class UserFeature(Base):
+    __tablename__ = "user_features"
+
+    id = Column(Integer, primary_key=True, index=True, nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    feature_id = Column(Integer, ForeignKey("features.id"))
+    create_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User", back_populates="features")
+    feature = relationship("Feature", back_populates="users")

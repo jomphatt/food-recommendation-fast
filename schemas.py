@@ -55,3 +55,32 @@ class Order(OrderBase):
 
     class Config:
         orm_mode = True
+
+class FeatureBase(BaseModel):
+    name: str
+
+class FeatureCreate(FeatureBase):
+    pass
+
+class Feature(FeatureBase):
+    id: int
+    create_at: datetime
+
+    class Config:
+        orm_mode = True
+
+class UserFeatureBase(BaseModel):
+    user_id: int
+    feature_id: int
+
+class UserFeatureCreate(UserFeatureBase):
+    pass
+
+class UserFeature(UserFeatureBase):
+    id: int
+    create_at: datetime
+    user: User
+    feature: Feature
+
+    class Config:
+        orm_mode = True
