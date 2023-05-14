@@ -19,13 +19,11 @@ from routers.line_bot.food_recommendation import FoodRecommendation
 from routers.line_bot.food_recognition import FoodRecognition
 from routers.line_bot.firebase_storage import FirebaseStorage
 
-# Import databases
+# Import database 
 import database
 import routers.menu.crud as menu_crud
 import routers.order.crud as order_crud
-
-# Initialize database session
-db = database.SessionLocal()
+import routers.user.crud as user_crud
 
 # Load environment variables
 load_dotenv(find_dotenv())
@@ -45,6 +43,9 @@ router = APIRouter(
 food_recommendation = FoodRecommendation()
 food_recognition = FoodRecognition()
 firebase_storage = FirebaseStorage()
+
+# Initialize database session
+db = database.SessionLocal()
 
 
 def __create_menu_bubble(menu_image_url: str, menu_name: str, menu_calorie: str) -> dict:
@@ -251,12 +252,14 @@ def create_recognition_bubble(predicted_menu_image_url: str, predicted_menu: any
     return recognition_bubble
 
 # TODO: Implement this function
-def create_daily_summary_bubble() -> dict:
+def create_daily_summary_bubble(daily_summary: any, user_id: str) -> dict:
     """Create a bubble message of the daily summary.
 
     Returns:
         daily_summary_bubble (dict): Bubble message of the daily summary.
     """
+    
+    set_menu_id = daily_summary.set_menu_id
     
     daily_summary_bubble = {}
     
@@ -314,22 +317,27 @@ def text_message(event):
                 "contents": menu_carousel
             }
         )
-    elif event.message.text == "Give me a daily summary.":
+    elif event.message.text == "Give me a daily summary.": # TODO: Implement this feature
+        
+        # Get user ID from LINE user ID
+        line_user_id = event.source.user_id
+        user_id = line_user_id
+        # TODO: Uncomment the following lines when the user ID is stored in the database
+        # user_id = user_crud.get_user_id(db=db, line_user_id=line_user_id)
+        
         # Retrieve summarized nutrition values from the database
-        daily_summary = order_crud.get_daily_summary(db)
+        daily_summary = order_crud.get_daily_summary(db=db, user_id=user_id)
         
-        # Get the summarized nutrition values
-        sum_calorie = daily_summary['sum_calorie']
-        sum_protein = daily_summary['sum_protein']
-        sum_fat = daily_summary['sum_fat']
-        sum_carbohydrate = daily_summary['sum_carbohydrate']
-        
+        # TODO: Check the structure of the daily summary returned from the database
+        print(daily_summary)
+    
         # Create a bubble message of the daily summary
-        daily_summary_bubble = create_daily_summary_bubble()
+        daily_summary_bubble = create_daily_summary_bubble(daily_summary=daily_summary, user_id=user_id)
         flex_message = FlexSendMessage(
-            alt_text='Check out your daily summary!',
+            alt_text='Check out your nutrition summary!',
             contents={
                 "type": "bubble",
+                "contents": daily_summary_bubble
             }
         )
     
@@ -361,7 +369,7 @@ def image_message(event):
     if is_food:
         # Recognize the menu
         predicted_menu_id = food_recognition.recognize_menu(img_path)
-        predicted_menu = menu_crud.get_menu(db, predicted_menu_id)
+        predicted_menu = menu_crud.get_menu(db=db, menu_id=predicted_menu_id)
         
         # TODO: Get the image URL from our API endpoint instead of Firebase Storage
         # Get the image URL of the recognized menu

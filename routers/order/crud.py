@@ -13,7 +13,7 @@ def get_daily_summary(db: Session, user_id: int):
     start_of_day = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
     result = (
         db.query(
-            models.Order,
+            func.array_agg(models.Order.menu_id).label("set_menu_id"),
             func.sum(models.Menu.calorie).label('sum_calorie'),
             func.sum(models.Menu.protein).label('sum_protein'),
             func.sum(models.Menu.fat).label('sum_fat'),
