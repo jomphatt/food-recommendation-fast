@@ -32,6 +32,7 @@ class User(Base):
 
     menus = relationship("Order", back_populates="user")
     features = relationship("UserFeature", back_populates="user")
+    state = relationship("UserState", uselist=False, back_populates="user")
 
 class Menu(Base):
     __tablename__ = "menus"
@@ -65,3 +66,15 @@ class UserFeature(Base):
 
     user = relationship("User", back_populates="features")
     feature = relationship("Feature", back_populates="users")
+
+class UserState(Base):
+    __tablename__ = "user_states"
+
+    id = Column(Integer, primary_key=True, index=True, nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    line_id = Column(String, nullable=False)
+    state = Column(String, nullable=False)
+    update_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now()) 
+    create_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User", back_populates="state")
