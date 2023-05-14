@@ -27,14 +27,14 @@ def create_user_feature(user_feature: schemas.UserFeatureCreate, db: Session = D
 def read_user_features(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     return crud.get_user_features(db, skip=skip, limit=limit)
 
-@router.get("/user/{user_id}", response_model=List[schemas.UserFeature])
+@router.get("/userid/{user_id}", response_model=List[schemas.UserFeature])
 def read_user_feature_by_user_id(user_id: int, db: Session = Depends(get_db)):
     db_user_feature = crud.get_user_feature_by_user_id(db, user_id=user_id)
     if db_user_feature is None:
         raise HTTPException(status_code=404, detail="UserFeature not found")
     return db_user_feature
 
-@router.get("/user/{line_id}", response_model=List[schemas.UserFeature])
+@router.get("/lineid/{line_id}", response_model=List[schemas.UserFeature])
 def read_user_feature_by_line_user_id(line_id: str, db: Session = Depends(get_db)):
     db_user_feature = crud.get_user_feature_by_line_id(db, line_id=line_id)
     if db_user_feature is None:

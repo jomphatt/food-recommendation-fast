@@ -21,3 +21,17 @@ def create_user_feature(db: Session, user_feature: schemas.UserFeatureCreate):
     db.commit()
     db.refresh(db_user_feature)
     return db_user_feature
+
+def create_multiple_user_features(db: Session, user_multiple_features: schemas.UserMultipleFeatuerCreate):
+    db_user_features = []
+    user_id = user_multiple_features.user_id
+    feature_ids = user_multiple_features.feature_ids
+
+    for feature_id in feature_ids:
+        db_user_feature = models.UserFeature(user_id=user_id, feature_id=feature_id)
+        db.add(db_user_feature)
+        db_user_features.append(db_user_feature)
+    
+    db.commit()
+    db.refresh(db_user_feature)
+    return db_user_features

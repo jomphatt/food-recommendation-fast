@@ -31,7 +31,8 @@ class UserBase(BaseModel):
     picture_url: str
 
 class UserCreate(UserBase):
-    pass
+    state: str
+    feature_ids: List[int]
 
 class User(UserBase):
     id: int
@@ -76,11 +77,31 @@ class UserFeatureBase(BaseModel):
 class UserFeatureCreate(UserFeatureBase):
     pass
 
+class UserMultipleFeatuerCreate(BaseModel):
+    user_id: int
+    feature_ids: List[int]
+
 class UserFeature(UserFeatureBase):
     id: int
     create_at: datetime
-    user: User
-    feature: Feature
+    # user: User
+    # feature: Feature
+
+    class Config:
+        orm_mode = True
+
+class UserStateBase(BaseModel):
+    user_id: int
+    line_id: str
+    state: str
+
+class UserStateCreate(UserStateBase):
+    pass
+
+class UserState(UserStateBase):
+    id: int
+    update_at: datetime
+    create_at: datetime
 
     class Config:
         orm_mode = True
