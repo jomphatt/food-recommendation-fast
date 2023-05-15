@@ -20,7 +20,6 @@ class ModelDownloader():
     food_nonfood_dir = "food_nonfood/"
     food_recognition_dir = "food_recognition/"
     
-    
     # Initialize BlobServiceClient and ContainerClient
     connection_string = f"DefaultEndpointsProtocol=https;AccountName={AZURE_ACCOUNT_NAME};AccountKey={AZURE_ACCOUNT_KEY};EndpointSuffix=core.windows.net"
     blob_service_client = BlobServiceClient.from_connection_string(connection_string)

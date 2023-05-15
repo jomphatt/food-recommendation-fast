@@ -67,7 +67,7 @@ def __create_menu_bubble(menu_image_url: str, menu_name: str, menu_calorie: str)
             "type": "image",
             "url": menu_image_url,
             "size": "full",
-            "aspectRatio": "20:13",
+            "aspectRatio": "4:3",
             "aspectMode": "cover"
         },
         "body": {
@@ -130,7 +130,7 @@ def create_menu_carousel(menus: list) -> dict:
     for menu in menus:
         menu_id = menu.id
         # TODO: Get the image URL from our API endpoint of Firebase Storage
-        menu_image_url = firebase_storage.get_image_urls(f"flex_images/{menu_id}.jpeg")
+        menu_image_url = firebase_storage.get_image_urls(f"flex_images/{menu_id}.jpg")
         menu_calorie = menu.calorie
         menu_name = menu.name
         
@@ -190,7 +190,7 @@ def create_recognition_bubble(predicted_menu_image_url: str, predicted_menu: any
             "type": "image",
             "url": predicted_menu_image_url,
             "size": "full",
-            "aspectRatio": "20:13",
+            "aspectRatio": "4:3",
             "aspectMode": "cover"
         },
         "body": {
@@ -253,16 +253,68 @@ def create_recognition_bubble(predicted_menu_image_url: str, predicted_menu: any
     
     return recognition_bubble
 
-# TODO: Figure out a proper way to fill out the information in the bubble message
-def create_daily_summary_bubble(daily_summary: any, user_id: str) -> dict:
+def create_daily_summary_bubble(daily_summary: dict) -> dict:
     """Create a bubble message of the daily summary.
 
     Returns:
         daily_summary_bubble (dict): Bubble message of the daily summary.
     """
 
+    if len(daily_summary) == 0:
+        daily_summary_bubble = {
+            "type": "bubble",
+            "size": "mega",
+            "body": {
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {
+                        "type": "text",
+                        "text": "EATWISE",
+                        "weight": "bold",
+                        "color": "#1DB446",
+                        "size": "sm"
+                    },
+                    {
+                        "type": "text",
+                        "text": "NUTRITION SUMMARY",
+                        "weight": "bold",
+                        "size": "xl",
+                        "margin": "md"
+                    },
+                    {
+                        "type": "text",
+                        "text": "Summary of nutrient consumed since start of day",
+                        "size": "xxs",
+                        "color": "#aaaaaa",
+                        "wrap": True
+                    },
+                    {
+                        "type": "separator",
+                        "margin": "xxl"
+                    },
+                    {
+                        "type": "text",
+                        "text": "No order history has been found. Please order a menu first.",
+                        "weight": "regular",
+                        "size": "md",
+                        "margin": "md",
+                        "wrap": True
+                    }
+                ]
+            },
+            "styles": {
+                "footer": {
+                    "separator": True
+                }
+            }
+        }
+    
+        return daily_summary_bubble
+
     # Count the number of each menu in the menu IDs of the daily summary
-    set_menu_id = daily_summary.set_menu_id    
+    set_menu_id = daily_summary["set_menu_id"]
+
     menu_count = {}
     for menu_id in set_menu_id:
         if menu_id in menu_count:
@@ -270,6 +322,7 @@ def create_daily_summary_bubble(daily_summary: any, user_id: str) -> dict:
         else:
             menu_count[menu_id] = 1
 
+    # Initialize the contents of the order history with the headers
     order_history_contents = [
         {
             "type": "box",
@@ -279,7 +332,7 @@ def create_daily_summary_bubble(daily_summary: any, user_id: str) -> dict:
                     "type": "text",
                     "text": "Menu",
                     "size": "sm",
-                    "color": "#555555",
+                    "color": "#111111",
                     "flex": 4,
                     "weight": "bold"
                 },
@@ -287,7 +340,7 @@ def create_daily_summary_bubble(daily_summary: any, user_id: str) -> dict:
                     "type": "text",
                     "text": "Calorie",
                     "size": "sm",
-                    "color": "#111111",
+                    "color": "#555555",
                     "align": "end",
                     "flex": 1,
                     "weight": "bold"
@@ -296,9 +349,10 @@ def create_daily_summary_bubble(daily_summary: any, user_id: str) -> dict:
         }
     ]
     
+    # Add order template of each menu to the order history contents
     for menu_id in menu_count:
         
-        menu = menu_crud.get_menu(menu_id=menu_id)
+        menu = menu_crud.get_menu(db, menu_id=menu_id)
         menu_quantity = menu_count[menu_id]
 
         order_template = {
@@ -309,7 +363,7 @@ def create_daily_summary_bubble(daily_summary: any, user_id: str) -> dict:
                     "type": "text",
                     "text": f"{menu_quantity}x {menu.name}",
                     "size": "sm",
-                    "color": "#555555",
+                    "color": "#111111",
                     "flex": 4,
                     "wrap": True
                 },
@@ -317,15 +371,55 @@ def create_daily_summary_bubble(daily_summary: any, user_id: str) -> dict:
                     "type": "text",
                     "text": str(menu.calorie * menu_quantity),
                     "size": "sm",
-                    "color": "#111111",
+                    "color": "#555555",
                     "align": "end",
                     "flex": 1
                 }
             ]
         }
         order_history_contents.append(order_template)
+    
+    # Loop through nutrient attributes to create the nutrient contents
+    nutrient_contents = []
+    for attr in daily_summary:
         
-    # Create a bubble message of the daily summary
+        if attr == 'set_menu_id':
+            title = 'Meals'
+            value = str(len(daily_summary[attr]))
+        else:
+            title = string.capwords(attr.replace('_', ' '))
+            unit = 'kcal' if attr == 'total_calorie' else 'g'
+            title = f'{title} ({unit})'
+            value = str(daily_summary[attr])
+        
+        weight = 'bold' if attr == 'total_calorie' else 'regular'
+            
+        nutrient_contents.append(
+            {
+                "type": "box",
+                "layout": "horizontal",
+                "contents": [
+                    {
+                        "type": "text",
+                        "text": title,
+                        "size": "sm",
+                        "color": "#111111",
+                        "weight": weight,
+                        "flex": 4
+                    },
+                    {
+                        "type": "text",
+                        "text": value,
+                        "size": "sm",
+                        "color": "#555555",
+                        "align": "end",
+                        "weight": weight,
+                        "flex": 1
+                    }
+                ]
+            }
+        )   
+    
     daily_summary_bubble = {
         "type": "bubble",
         "size": "mega",
@@ -349,7 +443,7 @@ def create_daily_summary_bubble(daily_summary: any, user_id: str) -> dict:
                 },
                 {
                     "type": "text",
-                    "text": "Summary of nutrient consumption since start of day",
+                    "text": "Summary of nutrient consumed since start of day",
                     "size": "xxs",
                     "color": "#aaaaaa",
                     "wrap": True
@@ -364,61 +458,25 @@ def create_daily_summary_bubble(daily_summary: any, user_id: str) -> dict:
                     "margin": "xxl",
                     "spacing": "sm",
                     "contents": order_history_contents
-                }
-            ]
-        },
-        "footer": {
-            "type": "box",
-            "layout": "vertical",
-            "spacing": "sm",
-            "contents": [
+                },
                 {
                     "type": "separator",
                     "margin": "xxl"
                 },
                 {
                     "type": "box",
-                    "layout": "horizontal",
+                    "layout": "vertical",
                     "margin": "xxl",
-                    "contents": [
-                        {
-                            "type": "text",
-                            "text": "MEALS",
-                            "size": "sm",
-                            "color": "#555555"
-                        },
-                        {
-                            "type": "text",
-                            "text": str(len(set_menu_id)),
-                            "size": "sm",
-                            "color": "#111111",
-                            "align": "end"
-                        }
-                    ]
-                },
-                {
-                    "type": "box",
-                    "layout": "horizontal",
-                    "contents": [
-                        {
-                            "type": "text",
-                            "text": "TOTAL CALORIE",
-                            "size": "sm",
-                            "color": "#555555",
-                            "weight": "bold"
-                        },
-                        {
-                            "type": "text",
-                            "text": str(daily_summary.total_calorie),
-                            "size": "sm",
-                            "color": "#111111",
-                            "align": "end",
-                            "weight": "bold"
-                        }
-                    ]
+                    "spacing": "sm",
+                    "contents": nutrient_contents  
                 }
             ]
-        }                   
+        },
+        "styles": {
+            "footer": {
+                "separator": True
+            }
+        }
     }
     
     return daily_summary_bubble
@@ -480,22 +538,32 @@ def text_message(event):
         
         # Get user ID from LINE user ID
         line_user_id = event.source.user_id
-        user_id = user_crud.get_user_by_line_id(db=db, line_user_id=line_user_id).id
+        user_id = user_crud.get_user_by_line_id(db=db, line_id=line_user_id).id
         
         # Retrieve summarized nutrition values from the database
-        daily_summary = order_crud.get_daily_summary(db=db, user_id=user_id)
+        query_result = order_crud.get_daily_summary(db=db, user_id=user_id)
+        
+        # Check if there is any order history since start of day
+        if len(query_result) == 0:
+            daily_summary = {}
+        else:
+            # Store result in dictionary
+            daily_summary = {
+                "set_menu_id": query_result[0][0],
+                "total_protein": query_result[0][1],
+                "total_carbohydrate": query_result[0][2],
+                "total_fat": query_result[0][3],
+                "total_calorie": query_result[0][4]
+            }
     
         # Create a bubble message of the daily summary
-        daily_summary_bubble = create_daily_summary_bubble(daily_summary=daily_summary, user_id=user_id)
+        daily_summary_bubble = create_daily_summary_bubble(daily_summary=daily_summary)
         flex_message = FlexSendMessage(
-            alt_text='Check out your nutrition summary!',
-            contents={
-                "type": "bubble",
-                "contents": daily_summary_bubble
-            }
+            alt_text='Check out your today nutrition summary!',
+            contents=daily_summary_bubble
         )
     
-    # Send the message to the user
+    # Send the flex message to the user
     line_bot_api.reply_message(
         event.reply_token, 
         flex_message
@@ -526,8 +594,9 @@ def image_message(event):
         predicted_menu = menu_crud.get_menu(db=db, menu_id=predicted_menu_id)
         
         # TODO: Get the image URL from our API endpoint instead of Firebase Storage
+        # TODO: Reduce the image resolution to reduce the time taken for LINE to download the image
         # Get the image URL of the recognized menu
-        predicted_menu_image_url = firebase_storage.get_image_urls(f"flex_images/{predicted_menu_id}.jpeg")
+        predicted_menu_image_url = firebase_storage.get_image_urls(f"flex_images/{predicted_menu_id}.jpg")
         
         # Create a bubble message of the recognized menu
         recognition_bubble = create_recognition_bubble(predicted_menu_image_url, predicted_menu)
