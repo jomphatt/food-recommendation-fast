@@ -1,6 +1,7 @@
 # FastAPI
 from fastapi import FastAPI, Header, HTTPException, Depends, status, Response, Request
 from fastapi.responses import JSONResponse, HTMLResponse
+from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
 # Line-Bot SDK
@@ -16,6 +17,19 @@ from routers.user_feature import user_feature
 
 # Initiate Fast App
 app = FastAPI()
+
+# CORS
+origins = [
+    "https://a516-2405-9800-bc00-2f1-9c01-228c-4397-900f.ngrok-free.app"
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Router to Fast App
 app.include_router(bot.router)
