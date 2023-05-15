@@ -11,7 +11,7 @@ class Order(Base):
     id = Column(Integer, primary_key=True, index=True, nullable=False)
     user_id = Column(Integer, ForeignKey("users.id"))
     menu_id = Column(Integer, ForeignKey("menus.id"))
-    create_at = Column(DateTime(timezone=True), server_default=func.now())
+    create_at = Column(DateTime(timezone=True), server_default=func.now()) # TODO: Change all time-related properties to UTC
 
     user = relationship("User", back_populates="menus")
     menu = relationship("Menu", back_populates="users")

@@ -1,13 +1,23 @@
 # Import general libraries
 import random
+import numpy as np
+import pandas as pd
 from dotenv import load_dotenv, find_dotenv
+
+# Import LightFM and other libraries for recommendation
+from lightfm import LightFM
+from lightfm.evaluation import precision_at_k, recall_at_k, auc_score
+from sklearn.preprocessing import OneHotEncoder, MinMaxScaler
+from scipy.sparse import csr_matrix, hstack
 
 # Import database libraries
 import database
 import routers.menu.crud as menu_crud
 
+
 # Initialize database session
 db = database.SessionLocal()
+
 
 class FoodRecommendation:
     
