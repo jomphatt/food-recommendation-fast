@@ -167,16 +167,16 @@ def create_recognition_bubble(predicted_menu_image_url: str, predicted_menu: any
                     {
                         "type": "text",
                         "text": f"{string.capwords(attr)} ({unit})",
-                        "color": "#aaaaaa",
-                        "size": "md",
-                        "flex": 1
+                        "color": "#111111",
+                        "size": "sm",
+                        "flex": 4
                     },
                     {
                         "type": "text",
                         "text": str(getattr(predicted_menu, attr)),
                         "wrap": True,
-                        "color": "#666666",
-                        "size": "md",
+                        "color": "#555555",
+                        "size": "sm",
                         "flex": 1
                     }
                 ]
@@ -219,15 +219,12 @@ def create_recognition_bubble(predicted_menu_image_url: str, predicted_menu: any
             "spacing": "sm",
             "contents": [
                 {
-                    "type": "separator"
-                },
-                {
                     "type": "button",
                     "style": "primary",
                     "height": "sm",
                     "action": {
                         "type": "message",
-                        "label": "CORRECT",
+                        "label": "Correct",
                         "text": "Yes, the prediction is correct."
                     }
                 },
@@ -237,15 +234,9 @@ def create_recognition_bubble(predicted_menu_image_url: str, predicted_menu: any
                     "height": "sm",
                     "action": {
                         "type": "message",
-                        "label": "INCORRECT",
+                        "label": "Incorrect",
                         "text": "No, the prediction is not correct." # TODO: Change type to uri and add a "uri" key with the value of the LIFF URL
                     }
-                },
-                {
-                    "type": "box",
-                    "layout": "vertical",
-                    "contents": [],
-                    "margin": "sm"
                 }
             ]
         }
@@ -534,7 +525,7 @@ def text_message(event):
                 "contents": menu_carousel
             }
         )
-    elif event.message.text == "Give me a daily summary.": # TODO: Implement this feature
+    elif event.message.text == "Give me a nutrition summary.":
         
         # Get user ID from LINE user ID
         line_user_id = event.source.user_id
