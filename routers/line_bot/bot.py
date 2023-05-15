@@ -25,6 +25,7 @@ import routers.menu.crud as menu_crud
 import routers.order.crud as order_crud
 import routers.user.crud as user_crud
 
+
 # Load environment variables
 load_dotenv(find_dotenv())
 
@@ -48,106 +49,16 @@ firebase_storage = FirebaseStorage()
 db = database.SessionLocal()
 
 
-def __create_menu_bubble(menu_image_url: str, menu_name: str, menu_calorie: str) -> dict:
-    """Create a bubble message of a menu to be added to a carousel.
-
-    Args:
-        menu_image_url (str): Firebase URL of the menu image.
-        menu_name (str): Menu name.
-        menu_calorie (str): Menu calorie.
-
-    Returns:
-        menu_bubble (dict): Bubble message of a menu.
-    """
-    
-    menu_bubble = {
-        "type": "bubble",
-        "size": "kilo",
-        "hero": {
-            "type": "image",
-            "url": menu_image_url,
-            "size": "full",
-            "aspectRatio": "4:3",
-            "aspectMode": "cover"
-        },
-        "body": {
-            "type": "box",
-            "layout": "vertical",
-            "contents": [
-                {
-                    "type": "text",
-                    "text": menu_name,
-                    "weight": "bold",
-                    "size": "lg",
-                    "wrap": True
-                },
-                {
-                    "type": "box",
-                    "layout": "vertical",
-                    "margin": "lg",
-                    "spacing": "sm",
-                    "contents": [
-                        {
-                            "type": "box",
-                            "layout": "baseline",
-                            "spacing": "md",
-                            "contents": [
-                                {
-                                    "type": "text",
-                                    "text": "Calorie (kcal)",
-                                    "color": "#aaaaaa",
-                                    "size": "md",
-                                    "flex": 1
-                                },
-                                {
-                                    "type": "text",
-                                    "text": menu_calorie,
-                                    "wrap": True,
-                                    "color": "#666666",
-                                    "size": "md",
-                                    "flex": 1
-                                }
-                            ]
-                        }
-                    ]
-                }
-            ]
-        }
-    }
-    
-    return menu_bubble
-
-def create_menu_carousel(menus: list) -> dict:
-    """Create a carousel message of menus.
-
-    Args:
-        menus (list): List of menus. Each menu is a dictionary.
-
-    Returns:
-        menu_carousel (dict): Carousel message of menus.
-    """
-    menu_carousel = []
-    for menu in menus:
-        menu_id = menu.id
-        # TODO: Get the image URL from our API endpoint of Firebase Storage
-        menu_image_url = firebase_storage.get_image_urls(f"flex_images/{menu_id}.jpg")
-        menu_calorie = menu.calorie
-        menu_name = menu.name
-        
-        menu_bubble = __create_menu_bubble(
-            menu_image_url=menu_image_url,
-            menu_name=menu_name,
-            menu_calorie=str(int(menu_calorie))
-        )
-        menu_carousel.append(menu_bubble)
-        
-    return menu_carousel
-
-def create_recognition_bubble(predicted_menu_image_url: str, predicted_menu: any) -> dict:
+def __create_menu_bubble(menu: any) -> dict:
+    """Create a bubble message of a menu to be added to a carousel."""
     
     # Declare menu name and selected attributes
-    menu_name = predicted_menu.name
+    menu_name = menu.name
     selected_attrs = ['calorie', 'protein', 'fat', 'carbohydrate']
+    
+    # TODO: Get the image URL from our API endpoint of Firebase Storage
+    # Get menu image URL from Firebase Storage
+    menu_image_url = firebase_storage.get_image_urls(f"flex_images/{menu.id}.jpg")
 
     # Create menu nutrition contents to be added to the bubble
     menu_nutrition_contents = []
@@ -173,7 +84,7 @@ def create_recognition_bubble(predicted_menu_image_url: str, predicted_menu: any
                     },
                     {
                         "type": "text",
-                        "text": str(getattr(predicted_menu, attr)),
+                        "text": str(getattr(menu, attr)),
                         "wrap": True,
                         "color": "#555555",
                         "size": "sm",
@@ -183,12 +94,12 @@ def create_recognition_bubble(predicted_menu_image_url: str, predicted_menu: any
             }
         )
     
-    recognition_bubble = {
+    menu_bubble = {
         "type": "bubble",
         "size": "kilo",
         "hero": {
             "type": "image",
-            "url": predicted_menu_image_url,
+            "url": menu_image_url,
             "size": "full",
             "aspectRatio": "4:3",
             "aspectMode": "cover"
@@ -205,6 +116,10 @@ def create_recognition_bubble(predicted_menu_image_url: str, predicted_menu: any
                     "wrap": True
                 },
                 {
+                    "type": "separator",
+                    "margin": "lg"
+                },
+                {
                     "type": "box",
                     "layout": "vertical",
                     "margin": "lg",
@@ -212,35 +127,66 @@ def create_recognition_bubble(predicted_menu_image_url: str, predicted_menu: any
                     "contents": menu_nutrition_contents
                 }
             ]
-        },
-        "footer": {
-            "type": "box",
-            "layout": "vertical",
-            "spacing": "sm",
-            "contents": [
-                {
-                    "type": "button",
-                    "style": "primary",
-                    "height": "sm",
-                    "action": {
-                        "type": "message",
-                        "label": "Correct",
-                        "text": "Yes, the prediction is correct."
-                    }
-                },
-                {
-                    "type": "button",
-                    "style": "secondary",
-                    "height": "sm",
-                    "action": {
-                        "type": "message",
-                        "label": "Incorrect",
-                        "text": "No, the prediction is not correct." # TODO: Change type to uri and add a "uri" key with the value of the LIFF URL
-                    }
-                }
-            ]
         }
     }
+    
+    return menu_bubble
+
+def create_menu_carousel(menus: list) -> dict:
+    """Create a carousel message of menus."""
+    
+    bubbles = []
+    for menu in menus:
+        
+        # Create a bubble message of a menu
+        bubble = __create_menu_bubble(menu=menu)
+        
+        # Add the bubble message to the carousel
+        bubbles.append(bubble)
+    
+    menu_carousel = {
+        "type": "carousel",
+        "contents": bubbles
+    }
+        
+    return menu_carousel
+
+def create_recognition_bubble(menu: any) -> dict:
+    """Create a bubble message of a menu to be returned as a recognition result."""
+    
+    # Create a bubble message of a menu
+    menu_bubble = __create_menu_bubble(menu=menu)
+    
+    # Add a footer that receives a feedback from the user to the bubble message
+    menu_bubble['footer'] = {
+        "type": "box",
+        "layout": "vertical",
+        "spacing": "sm",
+        "contents": [
+            {
+                "type": "button",
+                "style": "primary",
+                "height": "sm",
+                "action": {
+                    "type": "message",
+                    "label": "Correct",
+                    "text": "Yes, the prediction is correct."
+                }
+            },
+            {
+                "type": "button",
+                "style": "secondary",
+                "height": "sm",
+                "action": {
+                    "type": "message",
+                    "label": "Incorrect",
+                    "text": "No, the prediction is not correct." # TODO: Change type to uri and add a "uri" key with the value of the LIFF URL
+                }
+            }
+        ]
+    }
+    
+    recognition_bubble = menu_bubble
     
     return recognition_bubble
 
@@ -517,13 +463,10 @@ def text_message(event):
         recommended_menus = food_recommendation.recommend_menus()
         
         # Create a carousel message of recommended menus
-        menu_carousel = create_menu_carousel(recommended_menus)
+        menu_carousel = create_menu_carousel(menus=recommended_menus)
         flex_message = FlexSendMessage(
             alt_text='Check out our recommended menus!',
-            contents={
-                "type": "carousel",
-                "contents": menu_carousel
-            }
+            contents=menu_carousel
         )
     elif event.message.text == "Give me a nutrition summary.":
         
@@ -590,7 +533,7 @@ def image_message(event):
         predicted_menu_image_url = firebase_storage.get_image_urls(f"flex_images/{predicted_menu_id}.jpg")
         
         # Create a bubble message of the recognized menu
-        recognition_bubble = create_recognition_bubble(predicted_menu_image_url, predicted_menu)
+        recognition_bubble = create_recognition_bubble(menu=predicted_menu)
         
         # Create a flex message of the recognized menu
         flex_message = FlexSendMessage(
