@@ -5,8 +5,8 @@ import pandas as pd
 from dotenv import load_dotenv, find_dotenv
 
 # Import LightFM and other libraries for recommendation
-from lightfm import LightFM
-from lightfm.evaluation import precision_at_k, recall_at_k, auc_score
+# from lightfm import LightFM
+# from lightfm.evaluation import precision_at_k, recall_at_k, auc_score
 from sklearn.preprocessing import OneHotEncoder, MinMaxScaler
 from scipy.sparse import csr_matrix, hstack
 
