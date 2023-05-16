@@ -1,4 +1,5 @@
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 
 import models, schemas
 
@@ -14,6 +15,25 @@ def create_user_state(db: Session, user_state: schemas.UserStateCreate):
     db.commit()
     db.refresh(db_user_state)
     return db_user_state
+
+def update_user_state_by_line_id(db:Session, line_id: str, state: int):
+    """Update user state by LINE ID"""
+    
+    result = (
+        db.query(
+            models.UserState
+        )
+        .filter(
+            models.UserState.line_id == line_id
+        )
+        .first()
+        .update(
+            {models.UserState.state: state},
+            {models.UserState.update_at: func.now()}
+        )
+    )
+
+    return result
 
 # User
 def get_user(db: Session, user_id: int):

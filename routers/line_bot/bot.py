@@ -426,6 +426,29 @@ def get_flex_image_url(menu_id: int) -> str:
     flex_image_url = f"https://OUR-AZURE-DOMAIN/assets/images/flex_images/{menu_id}.jpg" #TODO: Change the domain 
     return flex_image_url
 
+def handle_unregistered_user_event(event: any):
+
+    # Get database connection from global variable
+    global db
+    global line_bot_api
+
+    # Get user state by LINE ID
+    line_user_id = event.source.user_id
+    user_state = user_crud.get_user_state_by_line_id(db=db, line_id=line_user_id)
+
+    # If user state is not found which means the user has not registered yet, send a message to ask the user to register first.
+    if user_state:
+        text_message = TextSendMessage(
+            text='EatWise could not find your account. Please register by pushing the "EATWISE PROFILE" button in the rich menu.'
+        )
+        line_bot_api.reply_message(
+            event.reply_token, 
+            text_message
+        )
+        return user_state
+
+    return user_state
+
 
 @router.get("/")
 async def root():
@@ -458,10 +481,8 @@ async def recognition_feedback(request: Request):
     # Get LINE ID, then use it to get user state
     body = await request.body()
     body = body.decode("utf-8")
-    print(body)
-    print(type(body))
-    # line_user_id = body["line_user_id"]
-    # user_state = user_crud.get_user_state_by_line_id(line_id=line_user_id)
+    line_user_id = body["line_user_id"]
+    user_state = user_crud.get_user_state_by_line_id(line_id=line_user_id)
     
     # # Check state of user
     # if user_state == 'TODO: FILL THE CORRECT STATE HERE.':
@@ -481,17 +502,57 @@ def text_message(event):
     Args:
         event (MessageEvent): LINE text message event.
     """
+
+    # Handle unregistered user event, get user state, and return if user does not exist
+    user_state = handle_unregistered_user_event(event=event)
+    if not user_state:
+        return
+
     if event.message.text == "Give me food recommendations.":
-        # Get a list of recommended menus
-        recommended_menus = food_recommendation.recommend_menus()
-        # print(food_recommendation.get_food_features())
         
-        # Create a carousel message of recommended menus
-        menu_carousel = create_menu_carousel(menus=recommended_menus)
-        flex_message = FlexSendMessage(
-            alt_text='Check out our recommended menus!',
-            contents=menu_carousel
-        )
+        # If user state is "start", the user has not requested for food recommendations yet.
+        if user_state == "start":
+
+            # Get a list of recommended menus
+            recommended_menus = food_recommendation.recommend_menus()
+            # print(food_recommendation.get_food_features())
+            
+            # Create a carousel message of recommended menus
+            menu_carousel = create_menu_carousel(menus=recommended_menus)
+
+            # Prepare messages to be sent to the user
+            flex_message = FlexSendMessage(
+                alt_text='Check out our recommended menus!',
+                contents=menu_carousel
+            )
+            text_message = TextSendMessage(
+                text='Here are our recommended menus for you! Once you have ordered your food, please take a picture of it and send it to us.'
+            )
+
+            # Send reply messages to the user
+            line_bot_api.reply_message(
+                event.reply_token, 
+                [flex_message, text_message]
+            ) 
+
+            # Update user state
+            user_crud.update_user_state_by_line_id(
+                db=db,
+                line_id=event.source.user_id,
+                state="recommendation_sent"
+            )
+
+        else:
+            
+            # Send an error message when the user has already requested for food recommendations for the next meal
+            error_message = TextSendMessage(
+                text='You have already requested for food recommendations for your next meal. Please take a picture of your food and send it to us.'
+            )
+            line_bot_api.reply_message(
+                event.reply_token, 
+                error_message
+            )
+
     elif event.message.text == "Give me a nutrition summary.":
         
         # Get user ID from LINE user ID
@@ -520,14 +581,22 @@ def text_message(event):
             alt_text='Check out your today nutrition summary!',
             contents=daily_summary_bubble
         )
+
+        # Send the flex message to the user
+        line_bot_api.reply_message(
+            event.reply_token, 
+            flex_message
+        )
+
     else:
-        return
-    
-    # Send the flex message to the user
-    line_bot_api.reply_message(
-        event.reply_token, 
-        flex_message
-    )        
+        # Send an error message when message is not recognized
+        error_message = TextSendMessage(
+            text='Sorry, EatWise does not understand what you mean. Please interact with me via rich menu or flex messages.'
+        )
+        line_bot_api.reply_message(
+            event.reply_token, 
+            error_message
+        )
         
 
 @handler.add(MessageEvent, message=ImageMessage)
@@ -537,54 +606,89 @@ def image_message(event):
     Args:
         event (MessageEvent): LINE image message event.
     """
+
+    # Handle unregistered user event, get user state, and return if user does not exist
+    user_state = handle_unregistered_user_event(event=event)
+    if not user_state:
+        return
     
-    # Get the image content
-    message_id = event.message.id
-    message_content = line_bot_api.get_message_content(message_id)
+    # 
+    if user_state == "recommendation_sent":
 
-    # # Save the image to the local storage
-    # img_path = f"./assets/inputs/{message_id}.jpg"
-    # with open(img_path, 'wb') as fd:
-    #     for chunk in message_content.iter_content():
-    #         fd.write(chunk)
+        # Get the image content
+        message_id = event.message.id
+        message_content = line_bot_api.get_message_content(message_id)
 
-    # Save image as a byte array
-    img_byte = io.BytesIO(message_content.content)
+        # TODO: Delete the code block below after testing firebase_storage.upload_preprocessed_image()
+        # # Save the image to the local storage
+        # img_path = f"./assets/inputs/{message_id}.jpg"
+        # with open(img_path, 'wb') as fd:
+        #     for chunk in message_content.iter_content():
+        #         fd.write(chunk)
 
-    # Check if the image contains food
-    is_food = food_recognition.is_food(img_byte)
-    if is_food:
-        # Recognize the menu
-        predicted_menu_id = food_recognition.recognize_menu(img_byte)
-        predicted_menu = menu_crud.get_menu(db=db, menu_id=predicted_menu_id)
-        
-        # Create a bubble message of the recognized menu
-        recognition_bubble = create_recognition_bubble(menu=predicted_menu)
-        
-        # Create a flex message of the recognized menu
-        flex_message = FlexSendMessage(
-            alt_text='Check out the menu prediction by EatWise!',
-            contents=recognition_bubble
+        # Save image as a byte array
+        img_byte = io.BytesIO(message_content.content)
+
+        # Check if the image contains food
+        is_food = food_recognition.is_food(img_byte)
+        if is_food:
+            # Recognize the menu
+            predicted_menu_id = food_recognition.recognize_menu(img_byte)
+            predicted_menu = menu_crud.get_menu(db=db, menu_id=predicted_menu_id)
+            
+            # TODO:
+            # 1. Save the preprocessed image to Firebase Storage in a folder named "uncategorized" where the image name is f"{USER ID}_{UUID or TIMESTAMP}.jpg".
+            # 2. Include the menu ID in the postback data of the "Correct" button in recognition bubble.
+            # 3. Create a postback event handler. Also send a message back to the user once a postback event is received.
+            # 4. Once received a postback event, categorize the image uploaded in step 1.
+            # 5. Apply the same approach with the "Incorrect" button. But we have to create a router instead of a postback event handler.
+
+            # Create a bubble message of the recognized menu
+            recognition_bubble = create_recognition_bubble(menu=predicted_menu)
+            
+            # Create a flex message of the recognized menu
+            flex_message = FlexSendMessage(
+                alt_text='Check out the menu prediction by EatWise!',
+                contents=recognition_bubble
+            )
+            
+            # Send the flex message containing the prediction bubble to the user
+            line_bot_api.reply_message(
+                event.reply_token, 
+                flex_message
+            )
+
+            # Update user state
+            user_crud.update_user_state_by_line_id(
+                db=db,
+                line_id=event.source.user_id,
+                state="menu_recognized"
+            )
+
+        else:
+            # Send an error message when the bot cannot detect food in the image
+            error_message = "EatWise cannot detect food in the image. Please try again."
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text=error_message) 
+            )
+
+        # TODO: Delete the code block below after testing firebase_storage.upload_preprocessed_image()
+        # # Delete the image from the local storage
+        # if os.path.exists(img_path):
+        #     os.remove(img_path)
+        # else:
+        #     print(f'The image path "{img_path}" does not exist.')
+    
+    else:
+        # Send an error message when the user sends an image at the wrong state
+        error_message = TextSendMessage(
+            text='Sorry. It seems like you have not requested for food recommendations for your next meal. Please push the "RECOMMEND" button in the rich menu.'
         )
-        
-        # Send the flex message containing the prediction bubble to the user
         line_bot_api.reply_message(
             event.reply_token, 
-            flex_message
+            error_message
         )
-    else:
-        # Send a warning message to the user
-        warning_msg = "EatWise cannot recognize the food in the image. Please try again."
-        line_bot_api.reply_message(
-            event.reply_token,
-            TextSendMessage(text=warning_msg) 
-        )
-
-    # # Delete the image from the local storage
-    # if os.path.exists(img_path):
-    #     os.remove(img_path)
-    # else:
-    #     print(f'The image path "{img_path}" does not exist.')
 
 
 @handler.add(MessageEvent, message=StickerMessage)
