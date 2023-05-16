@@ -28,10 +28,10 @@ class FirebaseStorage:
         )
     
     
-    def upload_preprocessed_image(self, menu_id: int, img_byte: bytes, preprocessed: bool = True):
+    def upload_preprocessed_image(self, menu_id: int, img_byte: bytes, is_preprocessed: bool = True):
         """Upload preprocessed image to Firebase Storage for retraining."""
         
-        if not preprocessed:
+        if not is_preprocessed:
             # Convert image byte to PIL image and resize it
             img_pil = Image.open(img_byte)
             img_pil = img_pil.resize((224, 224))
@@ -45,6 +45,18 @@ class FirebaseStorage:
         uniq_id = uuid.uuid4()
         uploaded_name = f"{menu_id}_{uniq_id}.jpg"
         uploaded_path = f"retrain_images/{menu_id}/{uploaded_name}"
+        blob = bucket.blob(uploaded_path)
+        blob.upload_from_string(
+            img_byte,
+            content_type='image/jpeg'
+        )
+
+    def upload_uncategorized_image(self, line_user_id: str, img_byte: bytes):
+        
+        bucket = storage.bucket()
+        uniq_id = uuid.uuid4()
+        uploaded_name = f"{line_user_id}_{uniq_id}.jpg"
+        uploaded_path = f"retrain_images/uncategorized/{uploaded_name}"
         blob = bucket.blob(uploaded_path)
         blob.upload_from_string(
             img_byte,

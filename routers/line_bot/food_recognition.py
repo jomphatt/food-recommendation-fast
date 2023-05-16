@@ -1,4 +1,5 @@
 # Import general libraries
+import io
 import numpy as np
 from PIL import Image
 
@@ -43,7 +44,12 @@ class FoodRecognition:
 
         # Convert image byte to PIL image and resize it
         img_pil = Image.open(img_byte)
-        img_pil = img_pil.resize((224, 224))
+        preprocessed_img_pil = img_pil.resize((224, 224))
+        
+        # Convert resized PIL Image to a byte stream
+        preprocessed_img_byte = io.BytesIO()
+        preprocessed_img_pil.save(img_byte, format='JPEG')
+        preprocessed_img_byte = img_byte.getvalue()
 
         # Convert image to Numpy array and expand its dimension
         img_arr = image.img_to_array(img_pil)
@@ -57,7 +63,7 @@ class FoodRecognition:
         else:
             raise ValueError("Invalid model name.")
 
-        return img_arr
+        return img_arr, preprocessed_img_byte
     
     
     def is_food(self, img_byte):
@@ -80,7 +86,7 @@ class FoodRecognition:
         inception_v3_onnx_session, inception_v3_input_name, inception_v3_output_name = self.__create_onnx_session(self.inception_v3_model_path)
         
         # Get preprocessed image
-        img_arr = self.__preprocess_image(model_name="inception_v3", img_byte=img_byte)
+        img_arr, preprocessed_img_byte = self.__preprocess_image(model_name="inception_v3", img_byte=img_byte)
 
         # Predict image
         predictions = inception_v3_onnx_session.run([inception_v3_output_name], {inception_v3_input_name: img_arr})[0]
@@ -88,5 +94,5 @@ class FoodRecognition:
         # Post-process predictions
         predicted_menu_id = int(np.argmax(predictions))
 
-        return predicted_menu_id
+        return predicted_menu_id, preprocessed_img_byte
 

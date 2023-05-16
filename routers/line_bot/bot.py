@@ -1,6 +1,7 @@
 # Import general libraries
 import io
 import os
+import json
 import string
 from pathlib import Path
 from dotenv import load_dotenv, find_dotenv
@@ -16,8 +17,9 @@ from fastapi.responses import FileResponse
 # Import LINE Messaging API SDK
 from linebot import *
 from linebot.exceptions import InvalidSignatureError
-from linebot.models import MessageEvent, TextMessage, StickerMessage, \
-    ImageMessage, StickerSendMessage, TextSendMessage, FlexSendMessage
+from linebot.models import TextMessage, ImageMessage, StickerMessage, \
+    TextSendMessage, FlexSendMessage, StickerSendMessage, \
+    MessageEvent, PostbackEvent
 
 # Import custom classes
 from routers.line_bot.food_recommendation import FoodRecommendation
@@ -175,9 +177,13 @@ def create_recognition_bubble(menu: any) -> dict:
                 "style": "primary",
                 "height": "sm",
                 "action": {
-                    "type": "message",
+                    "type": "postback",
                     "label": "Correct",
-                    "text": "Yes, the prediction is correct."
+                    "data": {
+                            "is_correct": True,
+                            "menu_id": menu.id
+                        },
+                    "displayText": "Yes, the prediction is correct."
                 }
             },
             {
@@ -187,7 +193,10 @@ def create_recognition_bubble(menu: any) -> dict:
                 "action": {
                     "type": "message",
                     "label": "Incorrect",
-                    "text": "No, the prediction is not correct." # TODO: Change type to uri and add a "uri" key with the value of the LIFF URL
+                    "text": "No, the prediction is not correct."
+                    # "type": "uri",
+                    # "label": "Incorrect",
+                    # "uri": "https://liff.line.me/1656093029-8YX2XZ3W" # TODO: Change the LIFF URL
                 }
             }
         ]
@@ -509,6 +518,10 @@ async def recognition_feedback(request: Request):
     return
 
 
+@handler.add(PostbackEvent, event=PostbackEvent)
+def postback_event(event):
+    pass
+
 @handler.add(MessageEvent, message=TextMessage)
 def text_message(event):
     """Handle text messages, including requests for food recommendations sent by users.
@@ -681,7 +694,7 @@ def text_message(event):
     else:
         # Send an error message when message is not recognized
         error_message = TextSendMessage(
-            text='Sorry, EatWise does not understand what you mean. Please interact with me via rich menu or flex messages.'
+            text='Sorry, EatWise does not understand what you mean. Please interact with us via rich menu or flex messages.'
         )
         line_bot_api.reply_message(
             event.reply_token, 
@@ -722,13 +735,20 @@ def image_message(event):
         # Check if the image contains food
         is_food = food_recognition.is_food(img_byte)
         if is_food:
+            
             # Recognize the menu
-            predicted_menu_id = food_recognition.recognize_menu(img_byte)
+            predicted_menu_id, preprocessed_img_byte = food_recognition.recognize_menu(img_byte)
             predicted_menu = menu_crud.get_menu(db=db, menu_id=predicted_menu_id)
             
+            # Save uncategorized image to Firebase Storage
+            firebase_storage.upload_uncategorized_image(
+                line_user_id=event.source.user_id,
+                img_byte=preprocessed_img_byte
+            )
+            
             # TODO:
-            # 1. Save the preprocessed image to Firebase Storage in a folder named "uncategorized" where the image name is f"{USER ID}_{UUID or TIMESTAMP}.jpg".
-            # 2. Include the menu ID in the postback data of the "Correct" button in recognition bubble.
+            # [DONE] 1. Save the preprocessed image to Firebase Storage in a folder named "uncategorized" where the image name is f"{USER ID}_{UUID or TIMESTAMP}.jpg".
+            # [DONE] 2. Include the menu ID in the postback data of the "Correct" button in recognition bubble.
             # 3. Create a postback event handler. Also send a message back to the user once a postback event is received.
             # 4. Once received a postback event, categorize the image uploaded in step 1.
             # 5. Apply the same approach with the "Incorrect" button. But we have to create a router instead of a postback event handler.
