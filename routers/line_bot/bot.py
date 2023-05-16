@@ -1,4 +1,5 @@
 # Import general libraries
+import io
 import os
 import string
 from pathlib import Path
@@ -512,19 +513,24 @@ def image_message(event):
         event (MessageEvent): LINE image message event.
     """
     
-    # Save the image to the local storage
+    # Get the image content
     message_id = event.message.id
     message_content = line_bot_api.get_message_content(message_id)
-    img_path = f"./assets/inputs/{message_id}.jpg"
-    with open(img_path, 'wb') as fd:
-        for chunk in message_content.iter_content():
-            fd.write(chunk)
+
+    # # Save the image to the local storage
+    # img_path = f"./assets/inputs/{message_id}.jpg"
+    # with open(img_path, 'wb') as fd:
+    #     for chunk in message_content.iter_content():
+    #         fd.write(chunk)
+
+    # Save image as a byte array
+    img_byte = io.BytesIO(message_content.content)
 
     # Check if the image contains food
-    is_food = food_recognition.is_food(img_path)
+    is_food = food_recognition.is_food(img_byte)
     if is_food:
         # Recognize the menu
-        predicted_menu_id = food_recognition.recognize_menu(img_path)
+        predicted_menu_id = food_recognition.recognize_menu(img_byte)
         predicted_menu = menu_crud.get_menu(db=db, menu_id=predicted_menu_id)
         
         # TODO: Get the image URL from our API endpoint instead of Firebase Storage
@@ -541,9 +547,6 @@ def image_message(event):
             contents=recognition_bubble
         )
         
-        # Upload the image to Firebase Storage for retraining
-        # firebase_storage.upload_retrain_image(predicted_menu_id, img_path)
-        
         # Send the flex message containing the prediction bubble to the user
         line_bot_api.reply_message(
             event.reply_token, 
@@ -557,11 +560,11 @@ def image_message(event):
             TextSendMessage(text=warning_msg) 
         )
 
-    # Delete the image from the local storage
-    if os.path.exists(img_path):
-        os.remove(img_path)
-    else:
-        print(f'The image path "{img_path}" does not exist.')
+    # # Delete the image from the local storage
+    # if os.path.exists(img_path):
+    #     os.remove(img_path)
+    # else:
+    #     print(f'The image path "{img_path}" does not exist.')
 
 
 @handler.add(MessageEvent, message=StickerMessage)

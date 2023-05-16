@@ -1,5 +1,6 @@
 # Import general libraries
 import numpy as np
+from PIL import Image
 
 # Import Keras libraries
 from tensorflow.keras.models import Model, model_from_json
@@ -35,13 +36,17 @@ class FoodRecognition:
         return onnx_session, input_name, output_name
 
     
-    def __preprocess_image(self, model_name, img_path):
+    def __preprocess_image(self, model_name, img_byte):
         
         # Load and resize image
-        food_img = image.load_img(img_path, target_size=(224, 224))
+        # food_img = image.load_img(img_path, target_size=(224, 224))
+
+        # Convert image byte to PIL image and resize it
+        img_pil = Image.open(img_byte)
+        img_pil = img_pil.resize((224, 224))
 
         # Convert image to Numpy array and expand its dimension
-        img_arr = image.img_to_array(food_img)
+        img_arr = image.img_to_array(img_pil)
         img_arr = np.expand_dims(img_arr, axis=0)
         
         # Preprocess image
@@ -55,13 +60,13 @@ class FoodRecognition:
         return img_arr
     
     
-    def is_food(self, img_path):
+    def is_food(self, img_byte):
         
         # Create Onnx session for VGG-19 model
         vgg19_onnx_session, vgg19_input_name, vgg19_output_name = self.__create_onnx_session(self.vgg19_model_path)
         
         # Get preprocessed image
-        img_arr = self.__preprocess_image("vgg19", img_path)
+        img_arr = self.__preprocess_image(model_name="vgg19", img_byte=img_byte)
 
         # Predict image
         predictions = vgg19_onnx_session.run([vgg19_output_name], {vgg19_input_name: img_arr})[0]
@@ -69,13 +74,13 @@ class FoodRecognition:
         return predictions[0][0] == 1
 
 
-    def recognize_menu(self, img_path):
+    def recognize_menu(self, img_byte):
         
         # Create Onnx session for VGG-19 model
         inception_v3_onnx_session, inception_v3_input_name, inception_v3_output_name = self.__create_onnx_session(self.inception_v3_model_path)
         
         # Get preprocessed image
-        img_arr = self.__preprocess_image("inception_v3", img_path)
+        img_arr = self.__preprocess_image(model_name="inception_v3", img_byte=img_byte)
 
         # Predict image
         predictions = inception_v3_onnx_session.run([inception_v3_output_name], {inception_v3_input_name: img_arr})[0]
