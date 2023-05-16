@@ -6,6 +6,9 @@ from datetime import datetime, timedelta
 def get_order(db: Session, order_id: int):
     return db.query(models.Order).filter(models.Order.id == order_id).first()
 
+def get_lastest_order(db: Session, user_id: int):
+    return db.query(models.Order).filter(models.Order.user_id == user_id).order_by(models.Order.create_at.desc()).first()
+
 def get_order_by_user_id(db: Session, user_id: int):
     return db.query(models.Order).filter(models.Order.user_id == user_id).all()
 

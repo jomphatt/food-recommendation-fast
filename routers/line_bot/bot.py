@@ -4,6 +4,7 @@ import os
 import string
 from pathlib import Path
 from dotenv import load_dotenv, find_dotenv
+from datetime import datetime
 
 # Import FastAPI
 from fastapi import APIRouter, Depends, HTTPException, Request, Header
@@ -449,6 +450,15 @@ def handle_unregistered_user_event(event: any):
         return user_state
 
     return user_state
+
+def get_meal():
+    current_hour = datetime.now().hour
+    if current_hour >= 3 and current_hour < 11:
+        return 'breakfast'
+    elif current_hour >= 11 and current_hour < 17:
+        return 'lunch'
+    elif current_hour >= 17 or current_hour < 3:
+        return 'dinner'
 
 
 @router.get("/")
