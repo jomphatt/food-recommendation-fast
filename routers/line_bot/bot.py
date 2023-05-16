@@ -25,6 +25,7 @@ import database
 import routers.menu.crud as menu_crud
 import routers.order.crud as order_crud
 import routers.user.crud as user_crud
+import routers.user_feature.crud as user_feature_crud
 
 
 # Load environment variables
@@ -509,10 +510,52 @@ def text_message(event):
         return
 
     if event.message.text == "Give me food recommendations.":
-        
+
         # If user state is "start", the user has not requested for food recommendations yet.
         if user_state == "start":
+            # User features
+            users = user_crud.get_users(db=db)
+            user_preferences = user_feature_crud.get_user_features_flag(db=db)
 
+            # Food features
+            menu_features = menu_crud.get_menu_features(db=db)
+
+            # Interaction Matrix
+            interaction_matrix = order_crud.get_orders(db=db)
+
+            # Get food nutrition data
+            nutritional_data = menu_crud.get_menus_for_recommendation(db=db)
+
+            # Nutritional goal left
+            line_user_id = event.source.user_id
+            user_id = [user.id for user in users if user.line_id == line_user_id][0]
+
+            # Retrieve summarized nutrition values from the database
+            query_result = order_crud.get_daily_summary(db=db, user_id=user_id)
+
+            # Check if there is any order history since start of day
+            if len(query_result) == 0:
+                daily_summary = {}
+            else:
+                # Store result in dictionary
+                daily_summary = {
+                    "Protein": query_result[0][1],
+                    "Carbs": query_result[0][2],
+                    "Fat": query_result[0][3],
+                    "Calories": query_result[0][4]
+                }
+
+            nutritional_goal_left = {
+                "Protein": 50 - daily_summary["Protein"],
+                "Carbs": 300 - daily_summary["Carbs"],
+                "Fat": 70 - daily_summary["Fat"],
+                "Calories": 2000 - daily_summary["Calories"]
+            }
+
+            # Previous food 
+
+            
+            
             # Get a list of recommended menus
             recommended_menus = food_recommendation.recommend_menus()
             # print(food_recommendation.get_food_features())
@@ -552,7 +595,7 @@ def text_message(event):
                 event.reply_token, 
                 error_message
             )
-
+            
     elif event.message.text == "Give me a nutrition summary.":
         
         # Get user ID from LINE user ID

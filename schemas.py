@@ -9,6 +9,9 @@ class MenuBase(BaseModel):
     protein: float
     fat: float
     carbohydrate: float
+    breakfast: float
+    lunch: float
+    dinner: float
 
 class MenuCreate(MenuBase):
     pass
@@ -44,6 +47,7 @@ class User(UserBase):
 class OrderBase(BaseModel):
     user_id: int
     menu_id: int
+    rating: Union[int, None]
 
 class OrderCreate(OrderBase):
     pass
@@ -103,5 +107,31 @@ class UserState(UserStateBase):
     update_at: datetime
     create_at: datetime
 
+    class Config:
+        orm_mode = True
+        
+class MenuFeatureBase(BaseModel):
+    menu_id: int
+    spicy: int
+    high_sugar: int
+    high_fat: int
+    high_calorie: int
+    is_light: int
+    is_fried: int
+    contain_water: int
+    has_vegetable: int
+    high_sodium: int
+    high_protein: int
+    high_carbohydrate: int
+    high_cholesterol: int
+    has_chicken: int
+    has_pork: int
+    has_noodle: int
+    high_price: int
+
+class MenuFeatureCreate(MenuFeatureBase):
+    pass
+
+class MenuFeature(MenuFeatureBase):
     class Config:
         orm_mode = True
