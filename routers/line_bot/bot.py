@@ -563,7 +563,12 @@ def text_message(event):
             }
 
             # Previous food 
+            previous_food = order_crud.get_lastest_order(db=db, user_id=user_id)
 
+            # Meal time
+            meal_time = get_meal()
+
+            
             
             
             # Get a list of recommended menus
