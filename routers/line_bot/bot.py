@@ -50,6 +50,7 @@ firebase_storage = FirebaseStorage()
 db = database.SessionLocal()
 
 
+# TODO: (OPTIONAL) Add a store number to the menu table
 def __create_menu_bubble(menu: any) -> dict:
     """Create a bubble message of a menu to be added to a carousel."""
     
@@ -451,6 +452,27 @@ async def callback(request: Request, x_line_signature=Header(None)):
     response = {"message": "OK"}
     return response
 
+@router.post("/recognition_feedback")
+async def recognition_feedback(request: Request):
+    
+    # Get LINE ID, then use it to get user state
+    body = await request.body()
+    body = body.decode("utf-8")
+    print(body)
+    print(type(body))
+    # line_user_id = body["line_user_id"]
+    # user_state = user_crud.get_user_state_by_line_id(line_id=line_user_id)
+    
+    # # Check state of user
+    # if user_state == 'TODO: FILL THE CORRECT STATE HERE.':
+    #     pass
+    # else:
+    #     return
+    
+    # correct_class = body
+    
+    return
+
 
 @handler.add(MessageEvent, message=TextMessage)
 def text_message(event):
@@ -462,6 +484,7 @@ def text_message(event):
     if event.message.text == "Give me food recommendations.":
         # Get a list of recommended menus
         recommended_menus = food_recommendation.recommend_menus()
+        # print(food_recommendation.get_food_features())
         
         # Create a carousel message of recommended menus
         menu_carousel = create_menu_carousel(menus=recommended_menus)
@@ -497,6 +520,8 @@ def text_message(event):
             alt_text='Check out your today nutrition summary!',
             contents=daily_summary_bubble
         )
+    else:
+        return
     
     # Send the flex message to the user
     line_bot_api.reply_message(
@@ -532,11 +557,6 @@ def image_message(event):
         # Recognize the menu
         predicted_menu_id = food_recognition.recognize_menu(img_byte)
         predicted_menu = menu_crud.get_menu(db=db, menu_id=predicted_menu_id)
-        
-        # TODO: Get the image URL from our API endpoint instead of Firebase Storage
-        # TODO: Reduce the image resolution to reduce the time taken for LINE to download the image
-        # Get the image URL of the recognized menu
-        predicted_menu_image_url = firebase_storage.get_image_urls(f"flex_images/{predicted_menu_id}.jpg")
         
         # Create a bubble message of the recognized menu
         recognition_bubble = create_recognition_bubble(menu=predicted_menu)
