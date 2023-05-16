@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session
 
 import models, schemas
 
+# Menu
 def get_menu(db: Session, menu_id: int):
     return db.query(models.Menu).filter(models.Menu.id == menu_id).first()
 
@@ -18,3 +19,11 @@ def create_menu(db: Session, menu: schemas.MenuCreate):
     db.commit()
     db.refresh(db_menu)
     return db_menu
+
+def get_menus_for_recommendation(db: Session):
+    all_menus = db.query(models.Menu).all()
+    return {x.name: x for x in all_menus}
+
+# Menu Feature
+def get_menu_features(db: Session):
+    return db.query(models.MenuFeature).all()

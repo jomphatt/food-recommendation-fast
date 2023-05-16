@@ -1,4 +1,5 @@
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 
 import models, schemas
 
@@ -14,6 +15,27 @@ def get_user_feature_by_line_id(db: Session, line_id: str):
 def get_user_features(db: Session, skip: int = 0, limit: int = 100):
     all_user_features = db.query(models.UserFeature).offset(skip).limit(limit).all()
     return all_user_features
+
+def get_user_features_flag(db: Session):
+    query = text("""
+        select user_id,
+            sum(case when feature_id = 1 then 1 else 0 end) as "Cheap",
+            sum(case when feature_id = 2 then 1 else 0 end) as "Chicken",
+            sum(case when feature_id = 3 then 1 else 0 end) as "Fried",
+            sum(case when feature_id = 4 then 1 else 0 end) as "Pork",
+            sum(case when feature_id = 5 then 1 else 0 end) as "Salty",
+            sum(case when feature_id = 6 then 1 else 0 end) as "Soup",
+            sum(case when feature_id = 7 then 1 else 0 end) as "Spicy",
+            sum(case when feature_id = 8 then 1 else 0 end) as "Steam",
+            sum(case when feature_id = 9 then 1 else 0 end) as "Sweet",
+            sum(case when feature_id = 10 then 1 else 0 end) as "Vegetable"
+        from user_features uf 
+        group by user_id 
+        order by user_id;
+    """)
+    
+    result = db.execute(query)
+    return result.fetchall()
 
 def create_user_feature(db: Session, user_feature: schemas.UserFeatureCreate):
     db_user_feature = models.UserFeature(**user_feature.dict())
