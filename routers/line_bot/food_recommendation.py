@@ -6,8 +6,8 @@ from dotenv import load_dotenv, find_dotenv
 import pickle
 
 # Import LightFM and other libraries for recommendation
-# from lightfm import LightFM
-# from lightfm.evaluation import precision_at_k, recall_at_k, auc_score
+from lightfm import LightFM
+from lightfm.evaluation import precision_at_k, recall_at_k, auc_score
 from sklearn.preprocessing import OneHotEncoder, MinMaxScaler
 from scipy.sparse import csr_matrix, hstack
 from sklearn.metrics.pairwise import cosine_similarity
@@ -29,7 +29,7 @@ class FoodRecommendation:
        
     def __init__(self):
         self.df_food_feature = pd.read_csv('assets/mock_data/Food dataset final - Food dataset - Sheet2.csv')
-        self.df_poll = pd.read_csv('assets\mock_data\Contact Information (Responses) - Form responses 1(1).csv')
+        self.df_poll = pd.read_csv('assets/mock_data/Contact Information (Responses) - Form responses 1(1).csv')
         self.nutrient_data = self.df_food_feature.iloc[:, 0:13].to_dict('index')
 
     def get_user_features(self):
@@ -194,7 +194,7 @@ class FoodRecommendation:
         menu_db = menu_crud.get_menus(db)
         menu_ids = [id for id in menu_db]
         recommended_menu_ids = random.sample(menu_ids, n_menus)
-        recommended_menus = [menu_db[3] for id in recommended_menu_ids]
+        recommended_menus = [menu_db[id] for id in recommended_menu_ids]
         return recommended_menus
 
 
