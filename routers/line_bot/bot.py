@@ -520,7 +520,16 @@ async def recognition_feedback(request: Request):
 
 @handler.add(PostbackEvent, event=PostbackEvent)
 def postback_event(event):
-    pass
+    
+    # Handle unregistered user event, get user state, and return if user does not exist
+    user_state = handle_unregistered_user_event(event=event)
+    if not user_state:
+        return
+    
+    # Get postback data
+    postback_data = event.postback.data
+    
+    
 
 @handler.add(MessageEvent, message=TextMessage)
 def text_message(event):

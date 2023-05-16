@@ -28,6 +28,28 @@ class FirebaseStorage:
         )
     
     
+    def __move_file(seld, src_path: str, dest_path: str):
+        """Move file from source path to destination path in Firebase Storage."""
+        
+        bucket = storage.bucket()
+        src_blob = bucket.blob(src_path)
+
+        # Check if source path exists
+        if not src_blob.exists():
+            return
+
+        # Copy the source blob to the destination blob
+        dest_blob = bucket.blob(dest_path)
+        bucket.copy_blob(src_blob, bucket, new_name=dest_path)
+
+        # Check if destination path exists which means the copy was successful
+        if not dest_blob.exists():
+            return
+
+        # Delete the source blob
+        src_blob.delete()
+    
+    
     def upload_preprocessed_image(self, menu_id: int, img_byte: bytes, is_preprocessed: bool = True):
         """Upload preprocessed image to Firebase Storage for retraining."""
         
@@ -39,6 +61,7 @@ class FirebaseStorage:
             # Convert the PIL Image to a byte stream
             img_byte = io.BytesIO()
             img_pil.save(img_byte, format='JPEG')
+            img_byte.seek(0)
             img_byte = img_byte.getvalue()
 
         bucket = storage.bucket()
@@ -51,7 +74,9 @@ class FirebaseStorage:
             content_type='image/jpeg'
         )
 
+
     def upload_uncategorized_image(self, line_user_id: str, img_byte: bytes):
+        """Upload an image to a folder named 'uncategorized' in Firebase Storage."""
         
         bucket = storage.bucket()
         uniq_id = uuid.uuid4()
@@ -62,7 +87,24 @@ class FirebaseStorage:
             img_byte,
             content_type='image/jpeg'
         )
+        
+        
+    def categorize_image(self, line_user_id: str, menu_id: int,):
+        """Categorize an image in Firebase Storage by moving it from 'uncategorized' folder to a folder named after the menu ID."""
+        
+        bucket = storage.bucket()
+        
+        # List all blobs in the 'uncategorized' folder
+        blobs = bucket.list_blobs(prefix="retrain_images/uncategorized/")
 
+        # Iterate through blobs and check for matching pattern
+        for blob in blobs:
+            if blob.name.startswith(f"retrain_images/uncategorized/{line_user_id}_") and blob.name.endswith(".jpg"):
+                
+                # Move the image to the folder named after the menu ID
+                dest_path = f"retrain_images/{menu_id}/" + blob.name.split("/")[-1]
+                self.__move_file(src_path=blob.name, dest_path=dest_path)
+        
 
     def get_image_urls(self, firebase_img_path):
         """Get image URL from Firebase Storage."""

@@ -48,7 +48,8 @@ class FoodRecognition:
         
         # Convert resized PIL Image to a byte stream
         preprocessed_img_byte = io.BytesIO()
-        preprocessed_img_pil.save(img_byte, format='JPEG')
+        preprocessed_img_pil.save(preprocessed_img_byte, format='JPEG')
+        preprocessed_img_byte.seek(0)
         preprocessed_img_byte = img_byte.getvalue()
 
         # Convert image to Numpy array and expand its dimension
