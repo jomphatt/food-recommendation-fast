@@ -18,20 +18,23 @@ def get_user_features(db: Session, skip: int = 0, limit: int = 100):
 
 def get_user_features_flag(db: Session):
     query = text("""
+        select cheap, chicken, fried, pork, salty, soup, spicy, steam, sweet, vegetable
+        from (
         select user_id,
-            sum(case when feature_id = 1 then 1 else 0 end) as "Cheap",
-            sum(case when feature_id = 2 then 1 else 0 end) as "Chicken",
-            sum(case when feature_id = 3 then 1 else 0 end) as "Fried",
-            sum(case when feature_id = 4 then 1 else 0 end) as "Pork",
-            sum(case when feature_id = 5 then 1 else 0 end) as "Salty",
-            sum(case when feature_id = 6 then 1 else 0 end) as "Soup",
-            sum(case when feature_id = 7 then 1 else 0 end) as "Spicy",
-            sum(case when feature_id = 8 then 1 else 0 end) as "Steam",
-            sum(case when feature_id = 9 then 1 else 0 end) as "Sweet",
-            sum(case when feature_id = 10 then 1 else 0 end) as "Vegetable"
+            sum(case when feature_id = 1 then 1 else 0 end) as "cheap",
+            sum(case when feature_id = 2 then 1 else 0 end) as "chicken",
+            sum(case when feature_id = 3 then 1 else 0 end) as "fried",
+            sum(case when feature_id = 4 then 1 else 0 end) as "pork",
+            sum(case when feature_id = 5 then 1 else 0 end) as "salty",
+            sum(case when feature_id = 6 then 1 else 0 end) as "soup",
+            sum(case when feature_id = 7 then 1 else 0 end) as "spicy",
+            sum(case when feature_id = 8 then 1 else 0 end) as "steam",
+            sum(case when feature_id = 9 then 1 else 0 end) as "sweet",
+            sum(case when feature_id = 10 then 1 else 0 end) as "vegetable"
         from user_features uf 
         group by user_id 
-        order by user_id;
+        order by user_id
+        ) as user_features;
     """)
     
     result = db.execute(query)
