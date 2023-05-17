@@ -50,7 +50,7 @@ class OrderBase(BaseModel):
     rating: Union[int, None]
 
 class OrderCreate(OrderBase):
-    pass
+    create_at: datetime
 
 class Order(OrderBase):
     id: int

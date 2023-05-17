@@ -21,7 +21,7 @@ app = FastAPI()
 
 # CORS
 origins = [
-    "https://fd9d-2405-9800-bc00-2f1-5159-5c25-713-97e7.ngrok-free.app"
+    "https://e199-49-229-23-36.ngrok-free.app"
 ]
 
 app.add_middleware(

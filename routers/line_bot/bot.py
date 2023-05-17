@@ -634,11 +634,17 @@ def postback_event(event):
         # Get user ID from LINE ID
         user_id = user_crud.get_user_by_line_id(line_id=line_user_id).id
         
+        # Get current time in GMT+7
+        current_time_utc = datetime.utcnow()
+        tz = timezone(timedelta(hours=7))
+        current_time_gmt_7 = current_time_utc.astimezone(tz)
+        
         # Add an order of the correct menu to user's order history
         new_order = {
             "user_id": user_id,
             "menu_id": menu_id,
-            "rating": rating
+            "rating": rating,
+            "created_at": current_time_gmt_7,
         }
         order_crud.create_order(
             db=db,
