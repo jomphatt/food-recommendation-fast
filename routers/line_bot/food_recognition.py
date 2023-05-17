@@ -53,7 +53,7 @@ class FoodRecognition:
         preprocessed_img_byte = img_byte.getvalue()
 
         # Convert image to Numpy array and expand its dimension
-        img_arr = image.img_to_array(img_pil)
+        img_arr = image.img_to_array(preprocessed_img_pil)
         img_arr = np.expand_dims(img_arr, axis=0)
         
         # Preprocess image
@@ -73,7 +73,7 @@ class FoodRecognition:
         vgg19_onnx_session, vgg19_input_name, vgg19_output_name = self.__create_onnx_session(self.vgg19_model_path)
         
         # Get preprocessed image
-        img_arr = self.__preprocess_image(model_name="vgg19", img_byte=img_byte)
+        img_arr, _ = self.__preprocess_image(model_name="vgg19", img_byte=img_byte)
 
         # Predict image
         predictions = vgg19_onnx_session.run([vgg19_output_name], {vgg19_input_name: img_arr})[0]

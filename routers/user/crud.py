@@ -16,24 +16,18 @@ def create_user_state(db: Session, user_state: schemas.UserStateCreate):
     db.refresh(db_user_state)
     return db_user_state
 
-def update_user_state_by_line_id(db:Session, line_id: str, state: int):
-    """Update user state by LINE ID"""
+def update_user_state_by_line_id(db:Session, line_id: str, state: str):
+    """
+    Update user state by LINE ID
+    None -> registered -> recommendation_sent -> menu_recognized -> image_categorized -> registered -> ...
+    """
     
-    result = (
-        db.query(
-            models.UserState
-        )
-        .filter(
-            models.UserState.line_id == line_id
-        )
-        .first()
-        .update(
-            {models.UserState.state: state},
-            {models.UserState.update_at: func.now()}
-        )
-    )
+    user_state = db.query(models.UserState).filter(models.UserState.line_id == line_id).first()
+    if user_state:
+        user_state.state = state
+        db.commit()
 
-    return result
+    return user_state
 
 # User
 def get_user(db: Session, user_id: int):

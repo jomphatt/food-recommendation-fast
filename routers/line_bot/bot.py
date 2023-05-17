@@ -25,6 +25,7 @@ from linebot.models import TextMessage, ImageMessage, StickerMessage, \
 from routers.line_bot.food_recommendation import FoodRecommendation
 from routers.line_bot.food_recognition import FoodRecognition
 from routers.line_bot.firebase_storage import FirebaseStorage
+from schemas import OrderCreate
 
 # Import database 
 import database
@@ -188,12 +189,9 @@ def create_recognition_bubble(menu: any) -> dict:
                 "style": "secondary",
                 "height": "sm",
                 "action": {
-                    "type": "message",
+                    "type": "uri",
                     "label": "Incorrect",
-                    "text": "No, the prediction is not correct."
-                    # "type": "uri",
-                    # "label": "Incorrect",
-                    # "uri": "https://liff.line.me/1656093029-8YX2XZ3W" # TODO: Change the LIFF URL
+                    "uri": "https://liff.line.me/1660664500-zlANNKj5"
                 }
             }
         ]
@@ -602,7 +600,6 @@ def postback_event(event):
     line_user_id = event.source.user_id
     postback_data = event.postback.data
     postback_data = json.loads(postback_data)
-    is_correct = postback_data["is_correct"]
     menu_id = postback_data["menu_id"]
     
     # If user state is "menu_recognized", a recognition feedback is expected from the user.
@@ -612,10 +609,10 @@ def postback_event(event):
         firebase_storage.categorize_image(line_user_id=line_user_id, menu_id=menu_id)
     
         # Update user state to "image_categorized"
-        user_crud.update_user_state_by_line_id(line_id=line_user_id, state="image_categorized")
+        user_crud.update_user_state_by_line_id(db=db, line_id=line_user_id, state="image_categorized")
         
         # Send a flex message to ask the user to rate the food
-        rating_bubble = create_rating_bubble(is_correct=is_correct, menu_id=menu_id)
+        rating_bubble = create_rating_bubble(is_correct=True, menu_id=menu_id)
         flex_message = FlexSendMessage(
             alt_text="Let's rate your food!",
             contents=rating_bubble
@@ -632,7 +629,7 @@ def postback_event(event):
         rating = postback_data["rating"]
         
         # Get user ID from LINE ID
-        user_id = user_crud.get_user_by_line_id(line_id=line_user_id).id
+        user_id = user_crud.get_user_by_line_id(db=db, line_id=line_user_id).id
         
         # Get current time in GMT+7
         current_time_utc = datetime.utcnow()
@@ -640,12 +637,13 @@ def postback_event(event):
         current_time_gmt_7 = current_time_utc.astimezone(tz)
         
         # Add an order of the correct menu to user's order history
-        new_order = {
-            "user_id": user_id,
-            "menu_id": menu_id,
-            "rating": rating,
-            "created_at": current_time_gmt_7,
-        }
+        new_order = OrderCreate(
+            user_id=user_id,
+            menu_id=menu_id,
+            rating=rating,
+            create_at=current_time_gmt_7
+        )
+
         order_crud.create_order(
             db=db,
             order=new_order
@@ -660,8 +658,8 @@ def postback_event(event):
             text_message
         )
         
-        # Update user state to "start"
-        user_crud.update_user_state_by_line_id(line_id=line_user_id, state="start")
+        # Update user state to "registered"
+        user_crud.update_user_state_by_line_id(db=db, line_id=line_user_id, state="registered")
         
     else:
         return None
@@ -682,7 +680,7 @@ def text_message(event):
 
     if event.message.text == "Give me food recommendations.":
 
-        # If user state is "start", the user has not requested for food recommendations yet.
+        # If user state is "registered", the user has not requested for food recommendations yet.
         if user_state.state == "registered":
 
             gender_mapping = {
@@ -764,7 +762,8 @@ def text_message(event):
             # Load model
             model = food_recommendation.load_model()
             
-            result = food_recommendation.dynamic_food_recommend(
+            # "recommendation_result" is a dictionary that has a menu name as keys
+            recommendation_result = food_recommendation.dynamic_food_recommend(
                 model,
                 interaction_matrix_sparse,
                 user_id,
@@ -777,12 +776,15 @@ def text_message(event):
                 meal_time=meal_time
             )
             
-            print(result)
-
-
-            # Get a list of recommended menus
-            recommended_menus = food_recommendation.recommend_menus()
-            # print(food_recommendation.get_food_features())
+            # Get a list of recommended menu objects and store them in "recommended_menus" list
+            recommended_menus = []
+            for menu_name in recommendation_result:
+                # Get Menu object from menu name
+                menu = menu_crud.get_menu_by_name(db=db, name=menu_name)
+                recommended_menus.append(menu)
+    
+            # # Get a mock list of recommended menus
+            # recommended_menus = food_recommendation.mock_recommend_menus()
             
             # Create a carousel message of recommended menus
             menu_carousel = create_menu_carousel(menus=recommended_menus)
@@ -802,24 +804,60 @@ def text_message(event):
                 [flex_message, text_message]
             ) 
 
-            # # Update user state
-            # user_crud.update_user_state_by_line_id(
-            #     db=db,
-            #     line_id=event.source.user_id,
-            #     state="recommendation_sent"
-            # )
+            # Update user state
+            user_crud.update_user_state_by_line_id(
+                db=db,
+                line_id=event.source.user_id,
+                state="recommendation_sent"
+            )
 
         else:
             
-            # Send an error message when the user has already requested for food recommendations for the next meal
+            if user_state.state == "recommendation_sent":
+                error_text = "Please take a picture of your food to proceed further."
+                
+            elif user_state.state == "menu_recognized":
+                error_text = "Please provide feedback on the menu prediction to proceed further."
+                
+            elif user_state.state == "image_categorized":
+                error_text = "Please rate your food to proceed further."
+            
+            # Send an error message when the user has already requested for food recommendations
             error_message = TextSendMessage(
-                text='You have already requested for food recommendations for your next meal. Please take a picture of your food and send it to us.'
+                text=error_text
             )
             line_bot_api.reply_message(
                 event.reply_token, 
                 error_message
             )
-            
+
+    # If the recognition result is wrong, and the user uses LIFF to send the correct menu name
+    elif user_state.state == "menu_recognized" and (event.message.text).startswith("The correct menu is "):
+        
+        # Extract menu name from the message
+        menu_name = (event.message.text).split("The correct menu is ")[1]
+        menu_name = menu_name.rstrip(".")
+        
+        # Get menu ID from menu name
+        menu_id = (menu_crud.get_menu_by_name(db=db, name=menu_name)).id
+        
+        # Categorize uploaded image
+        firebase_storage.categorize_image(line_user_id=line_user_id, menu_id=menu_id)
+    
+        # Update user state to "image_categorized"
+        user_crud.update_user_state_by_line_id(db=db, line_id=line_user_id, state="image_categorized")
+        
+        # Send a flex message to ask the user to rate the food
+        rating_bubble = create_rating_bubble(is_correct=False, menu_id=menu_id)
+        flex_message = FlexSendMessage(
+            alt_text="Let's rate your food!",
+            contents=rating_bubble
+        )
+        line_bot_api.reply_message(
+            event.reply_token, 
+            flex_message
+        )
+    
     elif event.message.text == "Give me a nutrition summary.":
         
         # Get user ID from LINE user ID
@@ -879,19 +917,12 @@ def image_message(event):
     if not user_state:
         return
     
-    # 
+    # If the user has already requested for food recommendations
     if user_state.state == "recommendation_sent":
 
         # Get the image content
         message_id = event.message.id
         message_content = line_bot_api.get_message_content(message_id)
-
-        # TODO: Delete the code block below after testing firebase_storage.upload_preprocessed_image()
-        # # Save the image to the local storage
-        # img_path = f"./assets/inputs/{message_id}.jpg"
-        # with open(img_path, 'wb') as fd:
-        #     for chunk in message_content.iter_content():
-        #         fd.write(chunk)
 
         # Save image as a byte array
         img_byte = io.BytesIO(message_content.content)
@@ -939,18 +970,21 @@ def image_message(event):
                 event.reply_token,
                 TextSendMessage(text=error_message) 
             )
-
-        # TODO: Delete the code block below after testing firebase_storage.upload_preprocessed_image()
-        # # Delete the image from the local storage
-        # if os.path.exists(img_path):
-        #     os.remove(img_path)
-        # else:
-        #     print(f'The image path "{img_path}" does not exist.')
     
     else:
+        
+        if user_state.state == "registered":
+            error_text = "Please push the \"RECOMMEND\" button in the rich menu before sending your food image."
+            
+        elif user_state.state == "menu_recognized":
+            error_text = "Please provide feedback on the menu prediction to proceed further."
+            
+        elif user_state.state == "image_categorized":
+            error_text = "Please rate your food to proceed further."
+        
         # Send an error message when the user sends an image at the wrong state
         error_message = TextSendMessage(
-            text='Sorry. It seems like you have not requested for food recommendations for your next meal. Please push the "RECOMMEND" button in the rich menu.'
+            text=error_text
         )
         line_bot_api.reply_message(
             event.reply_token, 
@@ -960,5 +994,13 @@ def image_message(event):
 
 @handler.add(MessageEvent, message=StickerMessage)
 def sticker_message(event):
-    pass
+    
+    sticker_message = StickerSendMessage(
+        package_id='789',
+        sticker_id='10865'
+    )
+    line_bot_api.reply_message(
+        event.reply_token, 
+        sticker_message
+    )
 
