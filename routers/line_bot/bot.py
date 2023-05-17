@@ -179,7 +179,7 @@ def create_recognition_bubble(menu: any) -> dict:
                 "action": {
                     "type": "postback",
                     "label": "Correct",
-                    "data": f"{{\"menu_id\":{menu.id}}}",
+                    "data": f"{{\"is_correct\":true,\"menu_id\":{menu.id}}}",
                     "displayText": "Yes, the prediction is correct."
                 }
             },
@@ -585,25 +585,6 @@ async def callback(request: Request, x_line_signature=Header(None)):
     response = {"message": "OK"}
     return response
 
-@router.post("/recognition_feedback")
-async def recognition_feedback(request: Request):
-    
-    # Get LINE ID, then use it to get user state
-    body = await request.body()
-    body = body.decode("utf-8")
-    line_user_id = body["line_user_id"]
-    user_state = user_crud.get_user_state_by_line_id(line_id=line_user_id)
-    
-    # # Check state of user
-    # if user_state == 'TODO: FILL THE CORRECT STATE HERE.':
-    #     pass
-    # else:
-    #     return
-    
-    # correct_class = body
-    
-    return
-
 
 @handler.add(PostbackEvent, event=PostbackEvent)
 def postback_event(event):
@@ -617,6 +598,7 @@ def postback_event(event):
     line_user_id = event.source.user_id
     postback_data = event.postback.data
     postback_data = json.loads(postback_data)
+    is_correct = postback_data["is_correct"]
     menu_id = postback_data["menu_id"]
     
     # If user state is "menu_recognized", a recognition feedback is expected from the user.
@@ -629,7 +611,7 @@ def postback_event(event):
         user_crud.update_user_state_by_line_id(line_id=line_user_id, state="image_categorized")
         
         # Send a flex message to ask the user to rate the food
-        rating_bubble = create_rating_bubble(is_correct=True, menu_id=menu_id)
+        rating_bubble = create_rating_bubble(is_correct=is_correct, menu_id=menu_id)
         flex_message = FlexSendMessage(
             alt_text="Let's rate your food!",
             contents=rating_bubble
@@ -898,13 +880,6 @@ def image_message(event):
                 line_user_id=event.source.user_id,
                 img_byte=preprocessed_img_byte
             )
-            
-            # TODO:
-            # [DONE] 1. Save the preprocessed image to Firebase Storage in a folder named "uncategorized" where the image name is f"{USER ID}_{UUID or TIMESTAMP}.jpg".
-            # [DONE] 2. Include the menu ID in the postback data of the "Correct" button in recognition bubble.
-            # [PARTIALLY DONE] 3. Create a postback event handler. Also send a message back to the user once a postback event is received.
-            # [DONE] 4. Once received a postback event, categorize the image uploaded in step 1.
-            # 5. Apply the same approach with the "Incorrect" button. But we have to create a router instead of a postback event handler.
 
             # Create a bubble message of the recognized menu
             recognition_bubble = create_recognition_bubble(menu=predicted_menu)
