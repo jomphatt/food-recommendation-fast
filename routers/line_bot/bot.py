@@ -179,10 +179,7 @@ def create_recognition_bubble(menu: any) -> dict:
                 "action": {
                     "type": "postback",
                     "label": "Correct",
-                    "data": {
-                            "is_correct": True,
-                            "menu_id": menu.id
-                        },
+                    "data": f"{{\"menu_id\":{menu.id}}}",
                     "displayText": "Yes, the prediction is correct."
                 }
             },
@@ -205,6 +202,100 @@ def create_recognition_bubble(menu: any) -> dict:
     recognition_bubble = menu_bubble
     
     return recognition_bubble
+
+def create_rating_bubble(is_correct: bool, menu_id: int) -> dict:
+    """Create a rating bubble message to be returned after a recognition result."""
+
+    rating_bubble = {
+        "type": "bubble",
+        "body": {
+            "type": "box",
+            "layout": "vertical",
+            "contents": [
+                {
+                    "type": "text",
+                    "text": "Let's rate your food!",
+                    "weight": "bold",
+                    "size": "lg",
+                    "align": "start"
+                },
+                {
+                    "type": "box",
+                    "layout": "horizontal",
+                    "contents": [
+                        {
+                            "type": "button",
+                            "action": {
+                                "type": "postback",
+                                "label": "1",
+                                "data": f"{{\"menu_id\":{menu_id},\"rating\":1}}",
+                                "displayText": "1"
+                            },
+                            "style": "primary",
+                            "color": "#A6E3D6",
+                            "height": "md"
+                        },
+                        {
+                            "type": "button",
+                            "action": {
+                                "type": "postback",
+                                "label": "2",
+                                "data": f"{{\"menu_id\":{menu_id},\"rating\":2}}",
+                                "displayText": "2"
+                            },
+                            "style": "primary",
+                            "color": "#7BCEB8"
+                        },
+                        {
+                            "type": "button",
+                            "action": {
+                                "type": "postback",
+                                "label": "3",
+                                "data": f"{{\"menu_id\":{menu_id},\"rating\":3}}",
+                                "displayText": "3"
+                            },
+                            "style": "primary",
+                            "color": "#50B99A"
+                        },
+                        {
+                            "type": "button",
+                            "action": {
+                                "type": "postback",
+                                "label": "4",
+                                "data": f"{{\"menu_id\":{menu_id},\"rating\":4}}",
+                                "displayText": "4"
+                            },
+                            "style": "primary",
+                            "color": "#0E8A6A"
+                        },
+                        {
+                            "type": "button",
+                            "action": {
+                                "type": "postback",
+                                "label": "5",
+                                "data": f"{{\"menu_id\":{menu_id},\"rating\":5}}",
+                                "displayText": "5"
+                            },
+                            "style": "primary",
+                            "color": "#06C755"
+                        }
+                    ],
+                    "spacing": "sm",
+                    "margin": "md"
+                }
+            ]
+        }
+    }
+    
+    if is_correct:
+        
+        return rating_bubble
+    else:
+        
+        correct_menu = menu_crud.get_menu(db=db, menu_id=menu_id)
+        correct_menu_bubble = __create_menu_bubble(menu=correct_menu)
+        
+        return correct_menu_bubble, rating_bubble
 
 def create_daily_summary_bubble(daily_summary: dict) -> dict:
     """Create a bubble message of the daily summary.
@@ -442,10 +533,6 @@ def get_flex_image_url(menu_id: int) -> str:
 
 def handle_unregistered_user_event(event: any):
 
-    # Get database connection from global variable
-    global db
-    global line_bot_api
-
     # Get user state by LINE ID
     line_user_id = event.source.user_id
     user_state = user_crud.get_user_state_by_line_id(db=db, line_id=line_user_id)
@@ -526,10 +613,67 @@ def postback_event(event):
     if not user_state:
         return
     
-    # Get postback data
+    # Get data from postback event
+    line_user_id = event.source.user_id
     postback_data = event.postback.data
+    postback_data = json.loads(postback_data)
+    menu_id = postback_data["menu_id"]
     
+    # If user state is "menu_recognized", a recognition feedback is expected from the user.
+    if user_state == "menu_recognized":
     
+        # Categorize uploaded image
+        firebase_storage.categorize_image(line_user_id=line_user_id, menu_id=menu_id)
+    
+        # Update user state to "image_categorized"
+        user_crud.update_user_state_by_line_id(line_id=line_user_id, state="image_categorized")
+        
+        # Send a flex message to ask the user to rate the food
+        rating_bubble = create_rating_bubble(is_correct=True, menu_id=menu_id)
+        flex_message = FlexSendMessage(
+            alt_text="Let's rate your food!",
+            contents=rating_bubble
+        )
+        line_bot_api.reply_message(
+            event.reply_token, 
+            flex_message
+        )
+    
+    # If user state is "image_categorized", a rating feedback is expected from the user.
+    elif user_state == "image_categorized":
+        
+        # Get rating from postback data
+        rating = postback_data["rating"]
+        
+        # Get user ID from LINE ID
+        user_id = user_crud.get_user_by_line_id(line_id=line_user_id).id
+        
+        # Add an order of the correct menu to user's order history
+        new_order = {
+            "user_id": user_id,
+            "menu_id": menu_id,
+            "rating": rating
+        }
+        order_crud.create_order(
+            db=db,
+            order=new_order
+        )
+        
+        # Send a text message to thank the user for rating the food
+        text_message = TextSendMessage(
+            text="Thank you for rating the food!"
+        )
+        line_bot_api.reply_message(
+            event.reply_token, 
+            text_message
+        )
+        
+        # Update user state to "start"
+        user_crud.update_user_state_by_line_id(line_id=line_user_id, state="start")
+        
+    else:
+        return None
+        
 
 @handler.add(MessageEvent, message=TextMessage)
 def text_message(event):
@@ -758,8 +902,8 @@ def image_message(event):
             # TODO:
             # [DONE] 1. Save the preprocessed image to Firebase Storage in a folder named "uncategorized" where the image name is f"{USER ID}_{UUID or TIMESTAMP}.jpg".
             # [DONE] 2. Include the menu ID in the postback data of the "Correct" button in recognition bubble.
-            # 3. Create a postback event handler. Also send a message back to the user once a postback event is received.
-            # 4. Once received a postback event, categorize the image uploaded in step 1.
+            # [PARTIALLY DONE] 3. Create a postback event handler. Also send a message back to the user once a postback event is received.
+            # [DONE] 4. Once received a postback event, categorize the image uploaded in step 1.
             # 5. Apply the same approach with the "Incorrect" button. But we have to create a router instead of a postback event handler.
 
             # Create a bubble message of the recognized menu
