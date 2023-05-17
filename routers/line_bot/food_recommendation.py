@@ -28,54 +28,55 @@ db = database.SessionLocal()
 class FoodRecommendation:
        
     def __init__(self):
-        self.df_food_feature = pd.read_csv('assets/mock_data/Food dataset final - Food dataset - Sheet2.csv')
-        self.df_poll = pd.read_csv('assets/mock_data/Contact Information (Responses) - Form responses 1(1).csv')
-        self.nutrient_data = self.df_food_feature.iloc[:, 0:13].to_dict('index')
+        pass
+        # self.df_food_feature = pd.read_csv('assets/mock_data/Food dataset final - Food dataset - Sheet2.csv')
+        # self.df_poll = pd.read_csv('assets/mock_data/Contact Information (Responses) - Form responses 1(1).csv')
+        # self.nutrient_data = self.df_food_feature.iloc[:, 0:13].to_dict('index')
 
-    def get_user_features(self):
-        # Transform food preferences
-        self.df_poll['Food Preferences (choose what you like)'] = self.df_poll['Food Preferences (choose what you like)'].str.split(',').map(lambda x_list: [x.strip() for x in x_list])
-        user_prefer_dummies = self.df_poll['Food Preferences (choose what you like)'].str.join('|').str.get_dummies()
+    # def get_user_features(self):
+    #     # Transform food preferences
+    #     self.df_poll['Food Preferences (choose what you like)'] = self.df_poll['Food Preferences (choose what you like)'].str.split(',').map(lambda x_list: [x.strip() for x in x_list])
+    #     user_prefer_dummies = self.df_poll['Food Preferences (choose what you like)'].str.join('|').str.get_dummies()
         
-        # Transform gender
-        enc = OneHotEncoder(sparse=False)
-        gender_dummies = pd.DataFrame(enc.fit_transform(self.df_poll['Gender'].values.reshape(-1, 1)), columns=['Male', 'Female']).astype({'Male': 'int64', 'Female': 'int64'})
+    #     # Transform gender
+    #     enc = OneHotEncoder(sparse=False)
+    #     gender_dummies = pd.DataFrame(enc.fit_transform(self.df_poll['Gender'].values.reshape(-1, 1)), columns=['Male', 'Female']).astype({'Male': 'int64', 'Female': 'int64'})
 
-        # Get age, height, weight
-        numerical_dummies = self.df_poll[['Age', 'Height', 'Weight']]
+    #     # Get age, height, weight
+    #     numerical_dummies = self.df_poll[['Age', 'Height', 'Weight']]
         
-        sc = MinMaxScaler()
-        numerical_feature = sc.fit_transform(numerical_dummies)
-        numerical_feature = pd.DataFrame(numerical_feature, columns=['Age', 'Height', 'Weight'])
+    #     sc = MinMaxScaler()
+    #     numerical_feature = sc.fit_transform(numerical_dummies)
+    #     numerical_feature = pd.DataFrame(numerical_feature, columns=['Age', 'Height', 'Weight'])
         
-        user_features = pd.DataFrame(np.hstack((numerical_feature, gender_dummies, user_prefer_dummies)))
+    #     user_features = pd.DataFrame(np.hstack((numerical_feature, gender_dummies, user_prefer_dummies)))
         
-        user_features_sparse = csr_matrix(user_features)
+    #     user_features_sparse = csr_matrix(user_features)
         
-        return user_features_sparse
+    #     return user_features_sparse
     
-    def get_food_features(self):
-        # Set menus as index
-        df_food = self.df_food_feature.rename(columns = {'Nutrient': 'index'}).set_index('index')
+    # def get_food_features(self):
+    #     # Set menus as index
+    #     df_food = self.df_food_feature.rename(columns = {'Nutrient': 'index'}).set_index('index')
 
-        # Features for recommending
-        features = df_food.columns[13:]
-        # Dataframe with full set of features
-        food_features_df = df_food[features]
-        food_features_df = food_features_df.astype('float64')
+    #     # Features for recommending
+    #     features = df_food.columns[13:]
+    #     # Dataframe with full set of features
+    #     food_features_df = df_food[features]
+    #     food_features_df = food_features_df.astype('float64')
         
-        food_features_sparse = csr_matrix(food_features_df)
+    #     food_features_sparse = csr_matrix(food_features_df)
         
-        return food_features_sparse
+    #     return food_features_sparse
     
-    def get_interaction_matrix(self):
-        food_interaction_df = self.df_poll.loc[:, 'Menu Preferences (iCanteen) [ก๋วยเตี๋ยวไก่]': 'Menu Preferences (iCanteen) [ผัดซีอิ้วหมู]']
-        food_interaction_df = food_interaction_df.fillna('0').apply(lambda x: [y[0] for y in x], axis=1, result_type='expand')
-        food_interaction_df = food_interaction_df.astype('float64')
+    # def get_interaction_matrix(self):
+    #     food_interaction_df = self.df_poll.loc[:, 'Menu Preferences (iCanteen) [ก๋วยเตี๋ยวไก่]': 'Menu Preferences (iCanteen) [ผัดซีอิ้วหมู]']
+    #     food_interaction_df = food_interaction_df.fillna('0').apply(lambda x: [y[0] for y in x], axis=1, result_type='expand')
+    #     food_interaction_df = food_interaction_df.astype('float64')
 
-        interaction_matrix = csr_matrix(food_interaction_df)
+    #     interaction_matrix = csr_matrix(food_interaction_df)
         
-        return interaction_matrix
+    #     return interaction_matrix
     
     def train_model(self, interaction_matrix, user_features, food_features):
         # Create the LightFM model

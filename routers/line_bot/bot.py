@@ -5,7 +5,7 @@ import json
 import string
 from pathlib import Path
 from dotenv import load_dotenv, find_dotenv
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from scipy.sparse import csr_matrix, hstack
 from sklearn.preprocessing import MinMaxScaler
 import pandas as pd
@@ -551,7 +551,11 @@ def handle_unregistered_user_event(event: any):
     return user_state
 
 def get_meal():
-    current_hour = datetime.now().hour
+    current_time_utc = datetime.utcnow()
+    tz = timezone(timedelta(hours=7))
+    current_time_gmt_7 = current_time_utc.astimezone(tz)
+    current_hour = current_time_gmt_7.hour
+    
     if current_hour >= 3 and current_hour < 11:
         return 'Breakfast'
     elif current_hour >= 11 and current_hour < 17:
@@ -586,7 +590,7 @@ async def callback(request: Request, x_line_signature=Header(None)):
     return response
 
 
-@handler.add(PostbackEvent, event=PostbackEvent)
+@handler.add(PostbackEvent)
 def postback_event(event):
     
     # Handle unregistered user event, get user state, and return if user does not exist
@@ -602,7 +606,7 @@ def postback_event(event):
     menu_id = postback_data["menu_id"]
     
     # If user state is "menu_recognized", a recognition feedback is expected from the user.
-    if user_state == "menu_recognized":
+    if user_state.state == "menu_recognized":
     
         # Categorize uploaded image
         firebase_storage.categorize_image(line_user_id=line_user_id, menu_id=menu_id)
@@ -622,7 +626,7 @@ def postback_event(event):
         )
     
     # If user state is "image_categorized", a rating feedback is expected from the user.
-    elif user_state == "image_categorized":
+    elif user_state.state == "image_categorized":
         
         # Get rating from postback data
         rating = postback_data["rating"]
@@ -706,10 +710,13 @@ def text_message(event):
 
             interaction_rating = [order.rating for order in interaction_matrix] + ([0.0] * len(fill_in_user))
 
-            interaction_matrix_sparse = pd.crosstab(interaction_user, interaction_menu, values=interaction_rating, aggfunc='mean').fillna(0)
+            interaction_matrix_sparse = csr_matrix(pd.crosstab(interaction_user, interaction_menu, values=interaction_rating, aggfunc='mean').fillna(0))
 
             # Get food nutrition data
             nutritional_data = menu_crud.get_menus_for_recommendation(db=db)
+            
+            # Menu names
+            menu_names = list(nutritional_data.keys())
 
             # Nutritional goal left
             line_user_id = event.source.user_id
@@ -747,8 +754,24 @@ def text_message(event):
 
             # Meal time
             meal_time = get_meal()
-
-            print(interaction_matrix_sparse)
+            
+            # Load model
+            model = food_recommendation.load_model()
+            
+            result = food_recommendation.dynamic_food_recommend(
+                model,
+                interaction_matrix_sparse,
+                user_id,
+                user_features_sparse,
+                previous_food.menu_id,
+                menu_names,
+                menu_features_sparse,
+                nutritional_data,
+                nutritional_goal_left,
+                meal_time=meal_time
+            )
+            
+            print(result)
 
 
             # Get a list of recommended menus
@@ -851,7 +874,7 @@ def image_message(event):
         return
     
     # 
-    if user_state == "recommendation_sent":
+    if user_state.state == "recommendation_sent":
 
         # Get the image content
         message_id = event.message.id

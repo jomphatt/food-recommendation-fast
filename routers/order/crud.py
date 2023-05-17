@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_
 import models, schemas
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 def get_order(db: Session, order_id: int):
     return db.query(models.Order).filter(models.Order.id == order_id).first()
@@ -14,9 +14,11 @@ def get_order_by_user_id(db: Session, user_id: int):
 
 def get_daily_summary(db: Session, user_id: int):
     
-    # Get start of day
-    start_of_day = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-    start_of_day = start_of_day - timedelta(hours=7) # Convert to UTC
+    # Get start of day    
+    current_time_utc = datetime.utcnow()
+    tz = timezone(timedelta(hours=7))
+    current_time_gmt_7 = current_time_utc.astimezone(tz)
+    start_of_day = current_time_gmt_7.replace(hour=0, minute=0, second=0, microsecond=0)
     
     # Query nutrition summary since start of day
     query_result = (
