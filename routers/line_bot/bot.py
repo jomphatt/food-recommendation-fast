@@ -5,7 +5,7 @@ import json
 import string
 from pathlib import Path
 from dotenv import load_dotenv, find_dotenv
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from scipy.sparse import csr_matrix, hstack
 from sklearn.preprocessing import MinMaxScaler
 import pandas as pd
@@ -191,7 +191,7 @@ def create_recognition_bubble(menu: any) -> dict:
                 "action": {
                     "type": "uri",
                     "label": "Incorrect",
-                    "uri": "https://liff.line.me/1660664500-zlANNKj5"
+                    "uri": "https://liff.line.me/1660664500-JQB11po2/foods"
                 }
             }
         ]
@@ -201,7 +201,7 @@ def create_recognition_bubble(menu: any) -> dict:
     
     return recognition_bubble
 
-def create_rating_bubble(is_correct: bool, menu_id: int) -> dict:
+def create_rating_bubble(menu_id: int) -> dict:
     """Create a rating bubble message to be returned after a recognition result."""
 
     rating_bubble = {
@@ -285,15 +285,7 @@ def create_rating_bubble(is_correct: bool, menu_id: int) -> dict:
         }
     }
     
-    if is_correct:
-        
-        return rating_bubble
-    else:
-        
-        correct_menu = menu_crud.get_menu(db=db, menu_id=menu_id)
-        correct_menu_bubble = __create_menu_bubble(menu=correct_menu)
-        
-        return correct_menu_bubble, rating_bubble
+    return rating_bubble
 
 def create_daily_summary_bubble(daily_summary: dict) -> dict:
     """Create a bubble message of the daily summary.
@@ -550,8 +542,7 @@ def handle_unregistered_user_event(event: any):
 
 def get_meal():
     current_time_utc = datetime.utcnow()
-    tz = timezone(timedelta(hours=7))
-    current_time_gmt_7 = current_time_utc.astimezone(tz)
+    current_time_gmt_7 = current_time_utc + timedelta(hours=7)
     current_hour = current_time_gmt_7.hour
     
     if current_hour >= 3 and current_hour < 11:
@@ -587,6 +578,44 @@ async def callback(request: Request, x_line_signature=Header(None)):
     response = {"message": "OK"}
     return response
 
+@router.get("/nutrition_summary/{line_id}")
+async def nutrition_summary_by_line_id(line_id: str):
+    
+    user_id = (user_crud.get_user_by_line_id(db=db, line_id=line_id)).id
+    query_result = order_crud.get_daily_summary(db=db, user_id=user_id)
+    
+    if query_result:
+        nutrition_summary = {
+            "total_protein": query_result[0][1],
+            "total_carbohydrate": query_result[0][2],
+            "total_fat": query_result[0][3],
+            "total_calorie": query_result[0][4]
+        }
+    else:
+        nutrition_summary = {
+            "total_protein": 0.0,
+            "total_carbohydrate": 0.0,
+            "total_fat": 0.0,
+            "total_calorie": 0.0
+        }
+    
+    return nutrition_summary
+
+@router.get("/top_menus_by_user/{line_id}")
+async def top_menus_by_user(line_id: str):
+    
+    user_id = (user_crud.get_user_by_line_id(db=db, line_id=line_id)).id    
+    query_result = order_crud.get_top_menus_by_user(db=db, user_id=user_id, top_n=3)
+    
+    if query_result:
+        top_orders_by_user = [
+            {'menu_name': r[0], 'menu_calorie': r[1], 'order_count': r[2]} for r in query_result
+        ]
+    else:
+        top_orders_by_user = []
+
+    return top_orders_by_user
+
 
 @handler.add(PostbackEvent)
 def postback_event(event):
@@ -612,7 +641,7 @@ def postback_event(event):
         user_crud.update_user_state_by_line_id(db=db, line_id=line_user_id, state="image_categorized")
         
         # Send a flex message to ask the user to rate the food
-        rating_bubble = create_rating_bubble(is_correct=True, menu_id=menu_id)
+        rating_bubble = create_rating_bubble(menu_id=menu_id)
         flex_message = FlexSendMessage(
             alt_text="Let's rate your food!",
             contents=rating_bubble
@@ -633,8 +662,7 @@ def postback_event(event):
         
         # Get current time in GMT+7
         current_time_utc = datetime.utcnow()
-        tz = timezone(timedelta(hours=7))
-        current_time_gmt_7 = current_time_utc.astimezone(tz)
+        current_time_gmt_7 = current_time_utc + timedelta(hours=7)
         
         # Add an order of the correct menu to user's order history
         new_order = OrderCreate(
@@ -664,7 +692,6 @@ def postback_event(event):
     else:
         return None
         
-
 @handler.add(MessageEvent, message=TextMessage)
 def text_message(event):
     """Handle text messages, including requests for food recommendations sent by users.
@@ -678,6 +705,9 @@ def text_message(event):
     if not user_state:
         return
 
+    # Get LINE user ID
+    line_user_id = event.source.user_id
+
     if event.message.text == "Give me food recommendations.":
 
         # If user state is "registered", the user has not requested for food recommendations yet.
@@ -685,7 +715,9 @@ def text_message(event):
 
             gender_mapping = {
                 "Male": (0, 1),
-                "Female": (1, 0)
+                "Female": (1, 0),
+                "Other": (0, 0),
+                "Prefer not to say": (0, 0)
             }
 
             sc = MinMaxScaler()
@@ -723,7 +755,6 @@ def text_message(event):
             menu_names = list(nutritional_data.keys())
 
             # Nutritional goal left
-            line_user_id = event.source.user_id
             user_id = [user.id for user in users if user.line_id == line_user_id][0]
 
             # Retrieve summarized nutrition values from the database
@@ -832,10 +863,10 @@ def text_message(event):
             )
 
     # If the recognition result is wrong, and the user uses LIFF to send the correct menu name
-    elif user_state.state == "menu_recognized" and (event.message.text).startswith("The correct menu is "):
+    elif user_state.state == "menu_recognized" and (event.message.text).startswith("The correct menu is"):
         
         # Extract menu name from the message
-        menu_name = (event.message.text).split("The correct menu is ")[1]
+        menu_name = (event.message.text).split("\n")[1]
         menu_name = menu_name.rstrip(".")
         
         # Get menu ID from menu name
@@ -847,15 +878,23 @@ def text_message(event):
         # Update user state to "image_categorized"
         user_crud.update_user_state_by_line_id(db=db, line_id=line_user_id, state="image_categorized")
         
+        # Send a flex message showing the correct menu
+        correct_menu = menu_crud.get_menu(db=db, menu_id=menu_id)
+        correct_menu_bubble = __create_menu_bubble(menu=correct_menu)
+        correct_menu_flex = FlexSendMessage(
+            alt_text="Let's rate your food!",
+            contents=correct_menu_bubble
+        )
+        
         # Send a flex message to ask the user to rate the food
-        rating_bubble = create_rating_bubble(is_correct=False, menu_id=menu_id)
-        flex_message = FlexSendMessage(
+        rating_bubble = create_rating_bubble(menu_id=menu_id)
+        rating_flex = FlexSendMessage(
             alt_text="Let's rate your food!",
             contents=rating_bubble
         )
         line_bot_api.reply_message(
             event.reply_token, 
-            flex_message
+            [correct_menu_flex, rating_flex]
         )
     
     elif event.message.text == "Give me a nutrition summary.":
@@ -892,7 +931,7 @@ def text_message(event):
             event.reply_token, 
             flex_message
         )
-
+    
     else:
         # Send an error message when message is not recognized
         error_message = TextSendMessage(
@@ -970,7 +1009,7 @@ def image_message(event):
                 event.reply_token,
                 TextSendMessage(text=error_message) 
             )
-    
+
     else:
         
         if user_state.state == "registered":

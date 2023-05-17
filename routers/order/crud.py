@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_
 import models, schemas
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
 def get_order(db: Session, order_id: int):
     return db.query(models.Order).filter(models.Order.id == order_id).first()
@@ -16,8 +16,7 @@ def get_daily_summary(db: Session, user_id: int):
     
     # Get start of day    
     current_time_utc = datetime.utcnow()
-    tz = timezone(timedelta(hours=7))
-    current_time_gmt_7 = current_time_utc.astimezone(tz)
+    current_time_gmt_7 = current_time_utc + timedelta(hours=7)
     start_of_day = current_time_gmt_7.replace(hour=0, minute=0, second=0, microsecond=0)
     
     # Query nutrition summary since start of day
@@ -39,6 +38,22 @@ def get_daily_summary(db: Session, user_id: int):
         .all()
     )
     
+    return query_result
+
+def get_top_menus_by_user(db: Session, user_id: int, top_n: int):
+    query_result = (
+        db.query(
+            models.Menu.name,
+            models.Menu.calorie,
+            func.count(models.Order.menu_id).label('count_menu_id')
+        )
+        .filter(models.Order.user_id == user_id)
+        .group_by(models.Menu.name, models.Menu.calorie)
+        .order_by(func.count(models.Order.menu_id).desc())
+        .join(models.Menu, models.Order.menu_id == models.Menu.id)
+        .limit(top_n)
+        .all()
+    )
     return query_result
 
 def get_orders(db: Session):

@@ -61,3 +61,15 @@ def create_user(db: Session, user: schemas.UserCreate):
     db_user_features = crud.create_multiple_user_features(db, schemas.UserMultipleFeatuerCreate(user_id=db_user.id, feature_ids=user.feature_ids))
 
     return db_user
+
+def update_user_by_line_id(db: Session, weight: float, height: float, line_id: str):
+    """Update user by LINE user ID."""
+    
+    user = db.query(models.User).filter(models.User.line_id == line_id).first()
+    if user:
+        user.weight = weight
+        user.height = height
+        db.commit()
+
+    return user
+    
