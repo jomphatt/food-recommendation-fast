@@ -22,8 +22,16 @@ def create_menu(db: Session, menu: schemas.MenuCreate):
 
 def get_menus_for_recommendation(db: Session):
     all_menus = db.query(models.Menu).all()
-    return {x.name: x for x in all_menus}
+    return {x.name: {
+        'Breakfast': x.breakfast,
+        'Lunch': x.lunch,
+        'Dinner': x.dinner,
+        'Calories': x.calorie,
+        'Fat': x.fat,
+        'Carbs': x.carbohydrate,
+        'Protein': x.protein,
+    } for x in all_menus}
 
 # Menu Feature
 def get_menu_features(db: Session):
-    return db.query(models.MenuFeature).all()
+    return db.query(models.MenuFeature).order_by(models.MenuFeature.menu_id).all()

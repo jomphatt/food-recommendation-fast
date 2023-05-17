@@ -6,8 +6,8 @@ from dotenv import load_dotenv, find_dotenv
 import pickle
 
 # Import LightFM and other libraries for recommendation
-# from lightfm import LightFM
-# from lightfm.evaluation import precision_at_k, recall_at_k, auc_score
+from lightfm import LightFM
+from lightfm.evaluation import precision_at_k, recall_at_k, auc_score
 from sklearn.preprocessing import OneHotEncoder, MinMaxScaler
 from scipy.sparse import csr_matrix, hstack
 from sklearn.metrics.pairwise import cosine_similarity
@@ -77,15 +77,15 @@ class FoodRecommendation:
         
         return interaction_matrix
     
-    # def train_model(self, interaction_matrix, user_features, food_features):
-    #     # Create the LightFM model
-    #     model = LightFM(loss='warp', no_components=32)  # You can experiment with different loss functions and hyperparameters
+    def train_model(self, interaction_matrix, user_features, food_features):
+        # Create the LightFM model
+        model = LightFM(loss='warp', no_components=32)  # You can experiment with different loss functions and hyperparameters
 
-    #     # Fit the model on your interaction matrix and user/food features
-    #     model.fit(interaction_matrix, user_features=user_features, item_features=food_features, epochs=30)
+        # Fit the model on your interaction matrix and user/food features
+        model.fit(interaction_matrix, user_features=user_features, item_features=food_features, epochs=30)
         
-    #     with open('assets/models/rec_model.pickle', 'wb') as fle:
-    #         pickle.dump(model, fle, protocol=pickle.HIGHEST_PROTOCOL)
+        with open('assets/models/rec_model.pickle', 'wb') as fle:
+            pickle.dump(model, fle, protocol=pickle.HIGHEST_PROTOCOL)
             
     def load_model(self):
         with open('assets/models/rec_model.pickle', 'rb') as fle:
@@ -113,71 +113,71 @@ class FoodRecommendation:
 
         return b_nutrient
     
-    # def dynamic_food_recommend(self, model, interaction_matrix, user_id, user_features, food_id, food_names, food_features, nutrient_data, nutritional_goal_left, meal_time, n_recommendations=5, a1=0.001, a2=0.002, w1=0.3, w2=0.2, w3=0.3, w4=0.2, MinPositiveScore = 1):
+    def dynamic_food_recommend(self, model, interaction_matrix, user_id, user_features, food_id, food_names, food_features, nutrient_data, nutritional_goal_left, meal_time, n_recommendations=5, a1=0.001, a2=0.002, w1=0.3, w2=0.2, w3=0.3, w4=0.2, MinPositiveScore = 1):
 
-    #     # Get the index of the user in the interaction matrix
-    #     user_index = user_id
+        # Get the index of the user in the interaction matrix
+        user_index = user_id
 
-    #     # Predict scores for all food items for the user
-    #     scores = model.predict(user_index, np.arange(interaction_matrix.shape[1]), user_features=user_features, item_features=food_features)
+        # Predict scores for all food items for the user
+        scores = model.predict(user_index, np.arange(interaction_matrix.shape[1]), user_features=user_features, item_features=food_features)
 
-    #     # Calculate the cosine similarity matrix for food items using their features
-    #     similarities = cosine_similarity(food_features)
+        # Calculate the cosine similarity matrix for food items using their features
+        similarities = cosine_similarity(food_features)
 
-    #     # Define the minimum and maximum values for normalization
-    #     b_values = {nutrient: self.calculate_b(nutrient, nutrient_data, nutritional_goal_left, a1, a2, MinPositiveScore) for nutrient in ['Calories', 'Fat', 'Carbs', 'Protein']}
-    #     MinNutrientScore = {nutrient: -b_values[nutrient] for nutrient in ['Calories', 'Fat', 'Carbs', 'Protein']}
-    #     MaxNutrientScore = b_values
+        # Define the minimum and maximum values for normalization
+        b_values = {nutrient: self.calculate_b(nutrient, nutrient_data, nutritional_goal_left, a1, a2, MinPositiveScore) for nutrient in ['Calories', 'Fat', 'Carbs', 'Protein']}
+        MinNutrientScore = {nutrient: -b_values[nutrient] for nutrient in ['Calories', 'Fat', 'Carbs', 'Protein']}
+        MaxNutrientScore = b_values
 
-    #     MinPreference = min(scores)
-    #     MaxPreference = max(scores)
+        MinPreference = min(scores)
+        MaxPreference = max(scores)
 
-    #     MinSimilarity = 0
-    #     MaxSimilarity = 1
+        MinSimilarity = 0
+        MaxSimilarity = 1
 
-    #     MinTimeScore = 0
-    #     MaxTimeScore = 1
+        MinTimeScore = 0
+        MaxTimeScore = 1
 
-    #     final_dict = nutrient_data
-    #     for i, food_name in enumerate(food_names):
-    #         # Normalize the preference rating
-    #         PreferenceRating = scores[i]
-    #         NormalizedPreferenceRating = (PreferenceRating - MinPreference) / (MaxPreference - MinPreference)
+        final_dict = nutrient_data
+        for i, food_name in enumerate(food_names):
+            # Normalize the preference rating
+            PreferenceRating = scores[i]
+            NormalizedPreferenceRating = (PreferenceRating - MinPreference) / (MaxPreference - MinPreference)
 
-    #         # Normalize the similarity penalty
-    #         if food_id < 0:
-    #             NormalizedSimilarityPenalty = 0
-    #         else:
-    #             SimilarityPenalty = similarities[food_id][i]
-    #             NormalizedSimilarityPenalty = (SimilarityPenalty - MinSimilarity) / (MaxSimilarity - MinSimilarity)
+            # Normalize the similarity penalty
+            if food_id < 0:
+                NormalizedSimilarityPenalty = 0
+            else:
+                SimilarityPenalty = similarities[food_id][i]
+                NormalizedSimilarityPenalty = (SimilarityPenalty - MinSimilarity) / (MaxSimilarity - MinSimilarity)
 
-    #         # Calculate and normalize nutrient scores for each nutrient
-    #         nutrient_scores = []
-    #         for nutrient in ['Calories', 'Fat', 'Carbs', 'Protein']:
-    #             total_nutrient = nutrient_data[food_name][nutrient]
-    #             nutrient_score = -a1 * (total_nutrient - nutritional_goal_left[nutrient])**2 + b_values[nutrient] if (nutritional_goal_left[nutrient] - total_nutrient) >= 0 else -a2 * (total_nutrient - nutritional_goal_left[nutrient])**2 + b_values[nutrient]
-    #             normalized_nutrient_score = (nutrient_score - MinNutrientScore[nutrient]) / (MaxNutrientScore[nutrient] - MinNutrientScore[nutrient])
-    #             nutrient_scores.append(normalized_nutrient_score)
+            # Calculate and normalize nutrient scores for each nutrient
+            nutrient_scores = []
+            for nutrient in ['Calories', 'Fat', 'Carbs', 'Protein']:
+                total_nutrient = nutrient_data[food_name][nutrient]
+                nutrient_score = -a1 * (total_nutrient - nutritional_goal_left[nutrient])**2 + b_values[nutrient] if (nutritional_goal_left[nutrient] - total_nutrient) >= 0 else -a2 * (total_nutrient - nutritional_goal_left[nutrient])**2 + b_values[nutrient]
+                normalized_nutrient_score = (nutrient_score - MinNutrientScore[nutrient]) / (MaxNutrientScore[nutrient] - MinNutrientScore[nutrient])
+                nutrient_scores.append(normalized_nutrient_score)
 
-    #         # Calculate the average nutrient score
-    #         avg_nutrient_score = sum(nutrient_scores) / len(nutrient_scores)
+            # Calculate the average nutrient score
+            avg_nutrient_score = sum(nutrient_scores) / len(nutrient_scores)
 
-    #         # Get the time-based score and normalize it
-    #         TimeScore = nutrient_data[food_name][meal_time]
-    #         NormalizedTimeScore = (TimeScore - MinTimeScore) / (MaxTimeScore - MinTimeScore)
+            # Get the time-based score and normalize it
+            TimeScore = nutrient_data[food_name][meal_time]
+            NormalizedTimeScore = (TimeScore - MinTimeScore) / (MaxTimeScore - MinTimeScore)
 
-    #         # Calculate the final score for each food item
-    #         score = w1 * NormalizedPreferenceRating - w2 * NormalizedSimilarityPenalty + w3 * avg_nutrient_score + w4 * NormalizedTimeScore
+            # Calculate the final score for each food item
+            score = w1 * NormalizedPreferenceRating - w2 * NormalizedSimilarityPenalty + w3 * avg_nutrient_score + w4 * NormalizedTimeScore
 
-    #         # Update the final_dict with the calculated score
-    #         final_dict[food_name]['score'] = score
+            # Update the final_dict with the calculated score
+            final_dict[food_name]['score'] = score
 
-    #     # Get the top n recommendations based on the final scores
-    #     top_n = n_recommendations
-    #     top_n_food_data = self.top_n_items(final_dict, top_n)
-    #     print(top_n_food_data)
+        # Get the top n recommendations based on the final scores
+        top_n = n_recommendations
+        top_n_food_data = self.top_n_items(final_dict, top_n)
+        print(top_n_food_data)
         
-    #     return top_n_food_data
+        return top_n_food_data
 
 
     # TODO: Replace random.sample() with a real recommendation algorithm
@@ -196,19 +196,3 @@ class FoodRecommendation:
         recommended_menu_ids = random.sample(menu_ids, n_menus)
         recommended_menus = [menu_db[id] for id in recommended_menu_ids]
         return recommended_menus
-
-
-# select user_id ,
-# 	sum(case when feature_id = 1 then 1 else 0 end) as "Cheap",
-# 	sum(case when feature_id = 2 then 1 else 0 end) as "Chicken",
-# 	sum(case when feature_id = 3 then 1 else 0 end) as "Fried",
-# 	sum(case when feature_id = 4 then 1 else 0 end) as "Pork",
-# 	sum(case when feature_id = 5 then 1 else 0 end) as "Salty",
-# 	sum(case when feature_id = 6 then 1 else 0 end) as "Soup",
-# 	sum(case when feature_id = 7 then 1 else 0 end) as "Spicy",
-# 	sum(case when feature_id = 8 then 1 else 0 end) as "Steam",
-# 	sum(case when feature_id = 9 then 1 else 0 end) as "Sweet",
-# 	sum(case when feature_id = 10 then 1 else 0 end) as "Vegetable",
-# from user_features uf 
-# group by user_id 
-# order by user_id

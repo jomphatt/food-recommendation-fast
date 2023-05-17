@@ -5,6 +5,9 @@ import string
 from pathlib import Path
 from dotenv import load_dotenv, find_dotenv
 from datetime import datetime
+from scipy.sparse import csr_matrix, hstack
+from sklearn.preprocessing import MinMaxScaler
+import pandas as pd
 
 # Import FastAPI
 from fastapi import APIRouter, Depends, HTTPException, Request, Header
@@ -439,7 +442,7 @@ def handle_unregistered_user_event(event: any):
     user_state = user_crud.get_user_state_by_line_id(db=db, line_id=line_user_id)
 
     # If user state is not found which means the user has not registered yet, send a message to ask the user to register first.
-    if user_state:
+    if not user_state:
         text_message = TextSendMessage(
             text='EatWise could not find your account. Please register by pushing the "EATWISE PROFILE" button in the rich menu.'
         )
@@ -454,11 +457,11 @@ def handle_unregistered_user_event(event: any):
 def get_meal():
     current_hour = datetime.now().hour
     if current_hour >= 3 and current_hour < 11:
-        return 'breakfast'
+        return 'Breakfast'
     elif current_hour >= 11 and current_hour < 17:
-        return 'lunch'
+        return 'Lunch'
     elif current_hour >= 17 or current_hour < 3:
-        return 'dinner'
+        return 'Dinner'
 
 
 @router.get("/")
@@ -522,16 +525,40 @@ def text_message(event):
     if event.message.text == "Give me food recommendations.":
 
         # If user state is "start", the user has not requested for food recommendations yet.
-        if user_state == "start":
+        if user_state.state == "registered":
+
+            gender_mapping = {
+                "Male": (0, 1),
+                "Female": (1, 0)
+            }
+
+            sc = MinMaxScaler()
+
             # User features
             users = user_crud.get_users(db=db)
+            user_age_height_weight_norm = list(map(tuple, sc.fit_transform([[2023 - user.birth_date.year, user.height, user.weight] for user in users])))
+
             user_preferences = user_feature_crud.get_user_features_flag(db=db)
+            user_predference_features = [(x.cheap, x.chicken, x.fried, x.pork, x.salty, x.soup, x.spicy, x.steam, x.sweet, x.vegetable) for x in user_preferences]
+
+            user_features_sparse = csr_matrix([numerical + (gender_mapping[user.gender]) + prefer for numerical, prefer, user in zip(user_age_height_weight_norm, user_predference_features, users)])
 
             # Food features
             menu_features = menu_crud.get_menu_features(db=db)
+            menu_features_sparse = csr_matrix([(menu.spicy, menu.high_sugar, menu.high_fat, menu.high_calorie, menu.is_light, menu.is_fried, menu.contain_water, menu.has_vegetable, menu.high_sodium, menu.high_protein, menu.high_carbohydrate, menu.high_cholesterol, menu.has_chicken, menu.has_pork, menu.has_noodle, menu.high_price) for menu in menu_features])
 
             # Interaction Matrix
             interaction_matrix = order_crud.get_orders(db=db)
+
+            interaction_user = [order.user_id for order in interaction_matrix]
+            fill_in_user = [user_id for user_id in range(0, len(users)) if user_id not in interaction_user]
+            interaction_user = interaction_user + fill_in_user
+
+            interaction_menu = [order.menu_id for order in interaction_matrix] + ([0.0] * len(fill_in_user))
+
+            interaction_rating = [order.rating for order in interaction_matrix] + ([0.0] * len(fill_in_user))
+
+            interaction_matrix_sparse = pd.crosstab(interaction_user, interaction_menu, values=interaction_rating, aggfunc='mean').fillna(0)
 
             # Get food nutrition data
             nutritional_data = menu_crud.get_menus_for_recommendation(db=db)
@@ -545,7 +572,12 @@ def text_message(event):
 
             # Check if there is any order history since start of day
             if len(query_result) == 0:
-                daily_summary = {}
+                daily_summary = {
+                    "Protein": 0.0,
+                    "Carbs": 0.0,
+                    "Fat": 0.0,
+                    "Calories": 0.0
+                }
             else:
                 # Store result in dictionary
                 daily_summary = {
@@ -568,9 +600,9 @@ def text_message(event):
             # Meal time
             meal_time = get_meal()
 
-            
-            
-            
+            print(interaction_matrix_sparse)
+
+
             # Get a list of recommended menus
             recommended_menus = food_recommendation.recommend_menus()
             # print(food_recommendation.get_food_features())
@@ -593,12 +625,12 @@ def text_message(event):
                 [flex_message, text_message]
             ) 
 
-            # Update user state
-            user_crud.update_user_state_by_line_id(
-                db=db,
-                line_id=event.source.user_id,
-                state="recommendation_sent"
-            )
+            # # Update user state
+            # user_crud.update_user_state_by_line_id(
+            #     db=db,
+            #     line_id=event.source.user_id,
+            #     state="recommendation_sent"
+            # )
 
         else:
             
