@@ -37,7 +37,9 @@ def get_db():
 def train_model(db: Session = Depends(get_db)):
     gender_mapping = {
         "Male": (0, 1),
-        "Female": (1, 0)
+        "Female": (1, 0),
+        "Other": (0, 0),
+        "Prefer not to say": (0, 0)
     }
     sc = MinMaxScaler()
     # User features

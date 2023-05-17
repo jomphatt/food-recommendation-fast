@@ -786,6 +786,7 @@ def text_message(event):
 
             # Previous food 
             previous_food = order_crud.get_lastest_order(db=db, user_id=user_id)
+            previous_food_id = previous_food.menu_id if previous_food else -1
 
             # Meal time
             meal_time = get_meal()
@@ -799,7 +800,7 @@ def text_message(event):
                 interaction_matrix_sparse,
                 user_id,
                 user_features_sparse,
-                previous_food.menu_id,
+                previous_food_id,
                 menu_names,
                 menu_features_sparse,
                 nutritional_data,
