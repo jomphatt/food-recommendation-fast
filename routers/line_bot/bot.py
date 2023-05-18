@@ -529,8 +529,9 @@ def handle_unregistered_user_event(event: any):
 
     # If user state is not found which means the user has not registered yet, send a message to ask the user to register first.
     if not user_state:
+
         text_message = TextSendMessage(
-            text='EatWise could not find your account. Please register by pushing the "EATWISE PROFILE" button in the rich menu.'
+            text='EatWise could not find your account. Please register by visiting https://liff.line.me/1660664500-JQB11po2/register.'
         )
         line_bot_api.reply_message(
             event.reply_token, 
@@ -932,7 +933,7 @@ def text_message(event):
             event.reply_token, 
             flex_message
         )
-    
+        
     else:
         # Send an error message when message is not recognized
         error_message = TextSendMessage(

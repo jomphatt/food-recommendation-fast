@@ -68,6 +68,9 @@ def train_model(db: Session = Depends(get_db)):
 
     interaction_matrix_sparse = csr_matrix(pd.crosstab(interaction_user, interaction_menu, values=interaction_rating, aggfunc='mean').fillna(0))
 
+    print(user_features_sparse)
+    print(menu_features_sparse)
+    print(interaction_matrix_sparse)
     print("Start Training")
     model = food_recommendation.train_model(interaction_matrix_sparse, user_features_sparse, menu_features_sparse)
     print("Done")
